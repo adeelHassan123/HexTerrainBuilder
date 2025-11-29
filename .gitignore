@@ -1,0 +1,123 @@
+
+# ─────────────── Dependencies ───────────────
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lockb
+
+# ─────────────── Build & Cache ───────────────
+dist/
+dist-ssr/
+build/
+.vite/
+.tsc-out/
+*.tsbuildinfo
+.cache/
+.parcel-cache/
+
+# ─────────────── Environment Variables ───────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# ─────────────── IDEs & Editors ───────────────
+.vscode/
+  !.vscode/settings.json
+  !.vscode/extensions.json
+  !.vscode/launch.json
+.idea/
+*.code-workspace
+*.sublime-workspace
+*.sublime-project
+.project
+.classpath
+.settings/
+agent_progress/
+instructions/
+
+# ─────────────── OS Garbage ───────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ─────────────── Logs & Debug ───────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ─────────────── Temporary Files ───────────────
+temp/
+tmp/
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
+*.suo
+
+# ─────────────── Testing & Coverage ───────────────
+coverage/
+.nyc_output/
+.jest/
+.mocha/
+
+# ─────────────── Vercel / Netlify / Cloud ───────────────
+.vercel/
+.netlify/
+.output/
+
+# ─────────────── 3D Assets – ONLY commit final optimized GLBs (<500KB) ───────────────
+# Keep your final models, ignore source files and heavy junk
+public/models/raw/
+public/models/source/
+public/models/blender/
+public/models/fbx/
+public/models/obj/
+public/models/*.fbx
+public/models/*.obj
+public/models/*.blend
+public/models/*.blend1
+public/models/*.gltf   # only commit if <500KB and final
+
+# Keep only final optimized GLBs
+!public/models/*.glb
+
+# Textures & icons are fine
+!public/textures/
+!public/icons/
+
+
+# ─────────────── DO NOT IGNORE – THESE MUST BE COMMITTED ───────────────
+# (These lines ensure your source code and config are never ignored)
+!.gitignore
+!src/
+!public/
+!public/models/*.glb
+!public/textures/
+!public/icons/
+!package.json
+!tsconfig.json
+!tsconfig.node.json
+!vite.config.ts
+!vite.config.mts
+!tailwind.config.ts
+!postcss.config.cjs
+!index.html
+!README.md
+!LICENSE
+!components.json
+!lib/
+!hooks/
+!stores/

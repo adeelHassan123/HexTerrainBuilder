@@ -15,7 +15,9 @@ import * as THREE from 'three';
 export default function App() {
   const [saveLoadOpen, setSaveLoadOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [controlsEnabled, setControlsEnabled] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const controlsRef = useRef<any>(null);
   const { exportMap } = useExport();
 
   useEffect(() => {
@@ -25,6 +27,14 @@ export default function App() {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  // Expose controls state to HexGrid via window (temporary solution)
+  useEffect(() => {
+    (window as any).__hexGridControlsEnabled = setControlsEnabled;
+    return () => {
+      delete (window as any).__hexGridControlsEnabled;
+    };
   }, []);
 
   const handleExport = (format: string) => {
@@ -96,6 +106,8 @@ export default function App() {
           <TableBoundary />
 
           <OrbitControls
+            ref={controlsRef}
+            enabled={controlsEnabled}
             enablePan={true}
             enableZoom={true}
             enableRotate={true}
@@ -108,8 +120,8 @@ export default function App() {
             panSpeed={isMobile ? 0.5 : 0.8}
             zoomSpeed={isMobile ? 0.5 : 0.8}
             touches={{
-              ONE: isMobile ? 0 : 2, // Disable camera control on single touch for mobile - allows tile placement
-              TWO: 1  // Zoom with two fingers
+              ONE: 2, // Single touch rotates (but we'll detect taps vs drags)
+              TWO: 1  // Two fingers zoom
             }}
             mouseButtons={{
               LEFT: 0, // Disable left mouse button for camera (let tile placement work)

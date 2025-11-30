@@ -2,57 +2,100 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import { getKey } from '../lib/hexMath';
-
-export type Tile = { q: number; r: number; height: number; id: string };
-export type PlacedAsset = { id: string; q: number; r: number; type: string; rotationY: number };
+import { Tile, PlacedAsset, TileHeight, ToolMode, TableSize, ASSET_CATALOG } from '../types';
 
 interface MapState {
-  tiles: Map<string, Tile>;
+  tiles: Map<string, Tile[]>; // Map of hex key -> array of tiles at that hex (stacking)
   assets: Map<string, PlacedAsset>;
-  selectedTool: 'tile' | 'asset' | 'select' | 'delete';
-  selectedTileHeight: 1 | 2 | 5;
+  selectedTool: ToolMode;
+  selectedTileHeight: TileHeight;
   selectedAssetType: string;
-  tableSize: { w: number; h: number };
+  tableSize: TableSize;
   projectName: string;
+  selectedObjectId: string | null; // ID of selected tile or asset
+  showLowerLayers: boolean; // Show/hide lower layers in stacks
 
   // Actions
-  setTool: (tool: MapState['selectedTool']) => void;
-  setTileHeight: (h: 1 | 2 | 5) => void;
+  setTool: (tool: ToolMode) => void;
+  setShowLowerLayers: (show: boolean) => void;
+  setTileHeight: (h: TileHeight) => void;
   setAssetType: (type: string) => void;
+  setSelectedObject: (id: string | null) => void;
   addTile: (q: number, r: number) => void;
-  removeTile: (q: number, r: number) => void;
+  removeTile: (id: string, q: number, r: number) => void;
+  removeAllTilesAt: (q: number, r: number) => void;
   addAsset: (q: number, r: number) => void;
   removeAsset: (id: string) => void;
+  rotateAsset: (id: string, delta: number) => void;
+  deleteSelected: () => void;
   clearMap: () => void;
   loadProject: (data: any) => void;
+  getTilesAt: (q: number, r: number) => Tile[];
+  getTotalHeightAt: (q: number, r: number) => number;
 }
 
 export const useMapStore = create<MapState>()(
   temporal(
     persist(
-      (set) => ({
+      (set, get) => ({
         tiles: new Map(),
         assets: new Map(),
         selectedTool: 'tile',
         selectedTileHeight: 1,
-        selectedAssetType: 'tree-01',
+        selectedAssetType: ASSET_CATALOG[0].id,
         tableSize: { w: 20, h: 16 },
         projectName: 'Untitled Map',
+        selectedObjectId: null,
+        showLowerLayers: true,
 
-        setTool: (tool) => set({ selectedTool: tool }),
+        setTool: (tool) => set({ selectedTool: tool, selectedObjectId: null }),
+        setShowLowerLayers: (show) => set({ showLowerLayers: show }),
         setTileHeight: (h) => set({ selectedTileHeight: h }),
         setAssetType: (type) => set({ selectedAssetType: type }),
+        setSelectedObject: (id) => set({ selectedObjectId: id }),
+
+        getTilesAt: (q, r) => {
+          const key = getKey(q, r);
+          return get().tiles.get(key) || [];
+        },
+
+        getTotalHeightAt: (q, r) => {
+          const tilesAt = get().getTilesAt(q, r);
+          // Return total height in cm (will be multiplied by 0.5 for Three.js units)
+          return tilesAt.reduce((sum, tile) => sum + tile.height, 0);
+        },
 
         addTile: (q, r) => set(state => {
           const key = getKey(q, r);
-          const existing = state.tiles.get(key);
-          const newHeight = existing ? existing.height + state.selectedTileHeight : state.selectedTileHeight;
+          const tilesAt = state.tiles.get(key) || [];
+          const newTile: Tile = {
+            q,
+            r,
+            height: state.selectedTileHeight,
+            id: crypto.randomUUID(),
+            stackLevel: tilesAt.length,
+          };
           const newTiles = new Map(state.tiles);
-          newTiles.set(key, { q, r, height: newHeight, id: crypto.randomUUID() });
+          newTiles.set(key, [...tilesAt, newTile]);
           return { tiles: newTiles };
         }),
 
-        removeTile: (q, r) => set(state => {
+        removeTile: (id, q, r) => set(state => {
+          const key = getKey(q, r);
+          const tilesAt = state.tiles.get(key) || [];
+          const filtered = tilesAt.filter(t => t.id !== id);
+          const newTiles = new Map(state.tiles);
+          if (filtered.length > 0) {
+            // Update stackLevels
+            const updated = filtered.map((t, i) => ({ ...t, stackLevel: i }));
+            newTiles.set(key, updated);
+          } else {
+            newTiles.delete(key);
+          }
+          return { tiles: newTiles, selectedObjectId: null };
+        }),
+
+        removeAllTilesAt: (q, r) => set(state => {
           const key = getKey(q, r);
           const newTiles = new Map(state.tiles);
           newTiles.delete(key);
@@ -61,16 +104,25 @@ export const useMapStore = create<MapState>()(
           for (const [id, asset] of newAssets) {
             if (asset.q === q && asset.r === r) newAssets.delete(id);
           }
-          return { tiles: newTiles, assets: newAssets };
+          return { tiles: newTiles, assets: newAssets, selectedObjectId: null };
         }),
 
         addAsset: (q, r) => set(state => {
           const newAssets = new Map(state.assets);
-          newAssets.set(crypto.randomUUID(), {
-            id: crypto.randomUUID(),
-            q, r,
+          const assetId = crypto.randomUUID();
+          const stackLevel = Array.from(state.assets.values()).filter(a => a.q === q && a.r === r).length;
+
+          // Verify asset type exists in catalog
+          const assetDef = ASSET_CATALOG.find(a => a.id === state.selectedAssetType);
+          if (!assetDef) return {};
+
+          newAssets.set(assetId, {
+            id: assetId,
+            q,
+            r,
             type: state.selectedAssetType,
-            rotationY: 0
+            rotationY: 0,
+            stackLevel,
           });
           return { assets: newAssets };
         }),
@@ -78,31 +130,111 @@ export const useMapStore = create<MapState>()(
         removeAsset: (id) => set(state => {
           const newAssets = new Map(state.assets);
           newAssets.delete(id);
+          return { assets: newAssets, selectedObjectId: null };
+        }),
+
+        rotateAsset: (id, delta) => set(state => {
+          const asset = state.assets.get(id);
+          if (!asset) return {};
+          const newAssets = new Map(state.assets);
+          newAssets.set(id, { ...asset, rotationY: asset.rotationY + delta });
           return { assets: newAssets };
         }),
 
-        clearMap: () => set({ tiles: new Map(), assets: new Map() }),
+        deleteSelected: () => set(state => {
+          if (!state.selectedObjectId) return {};
+
+          // Check if it's an asset
+          if (state.assets.has(state.selectedObjectId)) {
+            const newAssets = new Map(state.assets);
+            newAssets.delete(state.selectedObjectId);
+            return { assets: newAssets, selectedObjectId: null };
+          }
+
+          // Check if it's a tile
+          for (const [key, tilesAt] of state.tiles) {
+            const tileIndex = tilesAt.findIndex(t => t.id === state.selectedObjectId);
+            if (tileIndex !== -1) {
+              const newTiles = new Map(state.tiles);
+              const filtered = tilesAt.filter(t => t.id !== state.selectedObjectId);
+              if (filtered.length > 0) {
+                const updated = filtered.map((t, i) => ({ ...t, stackLevel: i }));
+                newTiles.set(key, updated);
+              } else {
+                newTiles.delete(key);
+              }
+              return { tiles: newTiles, selectedObjectId: null };
+            }
+          }
+
+          return {};
+        }),
+
+        clearMap: () => set({ tiles: new Map(), assets: new Map(), selectedObjectId: null }),
 
         loadProject: (data) => {
-          // Convert arrays back to Maps if necessary
-          const tiles = new Map(data.tiles);
-          const assets = new Map(data.assets);
-          set({ ...data, tiles, assets });
+          const tiles = new Map<string, Tile[]>();
+          const assets = new Map<string, PlacedAsset>();
+          if (data.tiles) {
+            for (const [key, tileArray] of Object.entries(data.tiles)) {
+              tiles.set(key, tileArray as Tile[]);
+            }
+          }
+          if (data.assets) {
+            for (const [key, asset] of Object.entries(data.assets)) {
+              assets.set(key, asset as PlacedAsset);
+            }
+          }
+          set({ ...data, tiles, assets, selectedObjectId: null });
         },
       }),
       {
         name: 'hexmap-storage',
-        partialize: (state) => ({
-          tiles: Object.fromEntries(state.tiles),
-          assets: Object.fromEntries(state.assets),
-          tableSize: state.tableSize,
-          projectName: state.projectName
-        }),
+        partialize: (state) => {
+          const tilesObj: Record<string, Tile[]> = {};
+          for (const [key, tileArray] of state.tiles) {
+            tilesObj[key] = tileArray;
+          }
+          const assetsObj: Record<string, PlacedAsset> = {};
+          for (const [key, asset] of state.assets) {
+            assetsObj[key] = asset;
+          }
+          return {
+            tiles: tilesObj,
+            assets: assetsObj,
+            tableSize: state.tableSize,
+            projectName: state.projectName,
+          };
+        },
         merge: (persistedState: any, currentState) => {
           if (!persistedState) return currentState;
           try {
-            const tiles = persistedState.tiles ? new Map(Object.entries(persistedState.tiles)) : new Map();
-            const assets = persistedState.assets ? new Map(Object.entries(persistedState.assets)) : new Map();
+            const tiles = new Map<string, Tile[]>();
+            if (persistedState.tiles) {
+              if (persistedState.tiles instanceof Map) {
+                // Already a Map
+                for (const [key, tileArray] of persistedState.tiles) {
+                  tiles.set(key, Array.isArray(tileArray) ? tileArray : []);
+                }
+              } else if (typeof persistedState.tiles === 'object') {
+                // Convert object to Map
+                for (const [key, tileArray] of Object.entries(persistedState.tiles)) {
+                  tiles.set(key, Array.isArray(tileArray) ? (tileArray as Tile[]) : []);
+                }
+              }
+            }
+            const assets = new Map<string, PlacedAsset>();
+            if (persistedState.assets) {
+              if (persistedState.assets instanceof Map) {
+                for (const [key, asset] of persistedState.assets) {
+                  assets.set(key, asset as PlacedAsset);
+                }
+              } else if (typeof persistedState.assets === 'object') {
+                for (const [key, asset] of Object.entries(persistedState.assets)) {
+                  assets.set(key, asset as PlacedAsset);
+                }
+              }
+            }
             return {
               ...currentState,
               ...persistedState,
@@ -121,10 +253,17 @@ export const useMapStore = create<MapState>()(
       }
     ),
     {
-      limit: 20,
+      limit: 50,
       partialize: (state) => {
-        const { tiles, assets } = state;
-        return { tiles, assets };
+        const tilesObj: Record<string, Tile[]> = {};
+        for (const [key, tileArray] of state.tiles) {
+          tilesObj[key] = tileArray;
+        }
+        const assetsObj: Record<string, PlacedAsset> = {};
+        for (const [key, asset] of state.assets) {
+          assetsObj[key] = asset;
+        }
+        return { tiles: tilesObj, assets: assetsObj };
       }
     }
   )

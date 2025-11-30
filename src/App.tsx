@@ -3,9 +3,11 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stats } from '@react-three/drei';
 import { Scene } from '@/components/3d/Scene';
 import { TableBoundary } from '@/components/3d/TableBoundary';
+import { MinimapView, MinimapContainer } from '@/components/3d/Minimap';
 import { Toolbar } from '@/components/ui/Toolbar';
 import { AssetLibrary } from '@/components/ui/AssetLibrary';
 import { InventoryPanel } from '@/components/ui/InventoryPanel';
+import { LayerControls } from '@/components/ui/LayerControls';
 import { SaveLoadDialog } from '@/components/ui/SaveLoadDialog';
 import { Toaster } from '@/components/ui/sonner';
 import { useMapStore } from '@/store/useMapStore';
@@ -17,6 +19,7 @@ export default function App() {
   const [saveLoadOpen, setSaveLoadOpen] = useState(false);
   const { tableSize } = useMapStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const minimapRef = useRef<HTMLDivElement>(null);
   const { exportMap } = useExport();
 
   const handleExport = (format: string) => {
@@ -24,71 +27,102 @@ export default function App() {
       const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true });
       exportMap('png', renderer);
     } else {
-      exportMap(format as any);
+      exportMap(format as 'woocommerce' | 'json' | 'glb' | 'png');
     }
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-background">
+    <div className="h-screen w-screen overflow-hidden bg-background relative">
       <Canvas
         ref={canvasRef}
-        camera={{ 
-          position: [tableSize.w * 0.8, tableSize.h * 0.8, tableSize.w * 0.8],
+        className="absolute inset-0 w-full h-full z-0"
+        camera={{
+          position: [15, 15, 15],
           fov: 60,
           near: 0.1,
           far: 1000
         }}
-        gl={{ 
+        gl={{
           antialias: true,
           toneMapping: THREE.ACESFilmicToneMapping
         }}
         shadows
       >
         <Suspense fallback={null}>
-          <color attach="background" args={['#f8fafc']} />
-          <ambientLight intensity={0.5} />
-          <directionalLight 
-            position={[10, 20, 10]} 
-            intensity={1} 
-            castShadow 
+          {/* Sky-blue background */}
+          <color attach="background" args={['#87CEEB']} />
+
+          {/* Phase 3: Cinematic Outdoor Lighting */}
+
+          {/* Hemisphere light for realistic sky/ground ambient */}
+          <hemisphereLight
+            args={['#87CEEB', '#6B8E23', 0.4]} // Sky blue, olive ground, moderate intensity
+            position={[0, 50, 0]}
+          />
+
+          {/* Physically correct sun directional light (warm, sharp but soft shadows) */}
+          <directionalLight
+            position={[15, 30, 15]} // Angled from above
+            intensity={1.2}
+            color="#FFF5E1" // Warm sunlight (cream white)
+            castShadow
             shadow-mapSize-width={2048}
             shadow-mapSize-height={2048}
-            shadow-camera-far={50}
-            shadow-camera-left={-20}
-            shadow-camera-right={20}
-            shadow-camera-top={20}
-            shadow-camera-bottom={-20}
+            shadow-camera-far={100}
+            shadow-camera-left={-25}
+            shadow-camera-right={25}
+            shadow-camera-top={25}
+            shadow-camera-bottom={-25}
+            shadow-bias={-0.0001}
           />
-          
+
+          {/* Subtle fill light to soften deep shadows */}
+          <directionalLight
+            position={[-10, 15, -10]}
+            intensity={0.3}
+            color="#B0C4DE" // Cool fill (light steel blue)
+          />
+
+          {/* Subtle volumetric distance fog */}
+          <fog attach="fog" args={['#87CEEB', 30, 80]} />
+
           <Scene />
           <TableBoundary />
-          
-          <OrbitControls 
+
+          <OrbitControls
             enablePan={true}
             enableZoom={true}
             enableRotate={true}
             minDistance={5}
             maxDistance={50}
-            target={[tableSize.w / 2, 0, tableSize.h / 2]}
+            target={[0, 0, 0]}
+            dampingFactor={0.05}
+            enableDamping={true}
           />
-          
+
           <gridHelper args={[50, 50, '#cbd5e1', '#e2e8f0']} position={[0, -0.1, 0]} />
           <axesHelper args={[5]} />
           <Stats />
+
+          {/* Minimap temporarily disabled to fix rendering issues */}
+          {/* <MinimapView containerRef={minimapRef} /> */}
         </Suspense>
       </Canvas>
-      
+
+      {/* <MinimapContainer containerRef={minimapRef} /> */}
+
       <Toolbar onSaveLoadOpen={() => setSaveLoadOpen(true)} onExport={handleExport} />
       <AssetLibrary />
       <InventoryPanel />
-      
-      <SaveLoadDialog 
-        open={saveLoadOpen} 
-        onOpenChange={setSaveLoadOpen} 
+      <LayerControls />
+
+      <SaveLoadDialog
+        open={saveLoadOpen}
+        onOpenChange={setSaveLoadOpen}
       />
-      
+
       <Toaster position="top-center" />
-      
+
       <div className="fixed bottom-2 left-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
         HexMap 3D Builder v1.0.0
       </div>

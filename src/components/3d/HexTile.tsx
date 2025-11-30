@@ -1,33 +1,71 @@
 import * as THREE from 'three';
+import { useRef, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { axialToWorld } from '../../lib/hexMath';
+import { getMaterialForTile, addColorVariation } from './Materials';
+import type { Tile } from '../../types';
 
 interface HexTileProps {
-  q: number;
-  r: number;
-  height: number;
+  tile: Tile;
+  totalHeightBelow: number; // Total height of all tiles below this one
+  isSelected: boolean;
+  onSelect: (tileId: string) => void;
 }
 
-export function HexTile({ q, r, height }: HexTileProps) {
-  try {
-    const [x, , z] = axialToWorld(q, r, height);
-    const realHeight = Math.max(0.1, height * 0.1); // Ensure positive height
+export function HexTile({ tile, totalHeightBelow, isSelected, onSelect }: HexTileProps) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const edgesRef = useRef<THREE.LineSegments>(null);
 
-    return (
+  // Get material based on stack level (intelligent terrain progression)
+  const material = useMemo(() => {
+    const baseMaterial = getMaterialForTile(tile.stackLevel, tile.height);
+    // Add subtle variation to avoid repetition
+    const seed = tile.q * 1000 + tile.r * 100 + tile.stackLevel;
+    addColorVariation(baseMaterial, seed);
+    return baseMaterial;
+  }, [tile.stackLevel, tile.height, tile.q, tile.r]);
+
+  const realHeight = Math.max(0.1, tile.height * 0.5); // HEIGHT_UNIT = 0.5 for Three.js scaling (1cm = 0.5 units)
+  const yPos = totalHeightBelow * 0.5 + realHeight / 2;
+  const [x, , z] = axialToWorld(tile.q, tile.r, 0);
+
+  // Selection emissive glow animation
+  useFrame(() => {
+    if (meshRef.current) {
+      const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+      if (isSelected) {
+        mat.emissive = new THREE.Color('#fbbf24'); // Amber glow for selected
+        mat.emissiveIntensity = 0.6;
+      } else {
+        mat.emissive = new THREE.Color('#000000');
+        mat.emissiveIntensity = 0;
+      }
+    }
+  });
+
+  return (
+    <group
+      position={[x, yPos, z]}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(tile.id);
+      }}
+    >
       <mesh
-        position={[x, realHeight / 2, z]}
+        ref={meshRef}
         castShadow
         receiveShadow
+        userData={{ hexTile: { q: tile.q, r: tile.r } }}
       >
         <cylinderGeometry args={[1, 1, realHeight, 6]} />
-        <meshStandardMaterial color="#4ade80" />
-        <lineSegments>
-          <edgesGeometry args={[new THREE.CylinderGeometry(1, 1, realHeight, 6)]} />
-          <lineBasicMaterial color="#166534" />
-        </lineSegments>
+        <primitive object={material} attach="material" />
       </mesh>
-    );
-  } catch (error) {
-    console.error('Error rendering HexTile:', error);
-    return null;
-  }
+
+      {/* Black outline */}
+      <lineSegments ref={edgesRef}>
+        <edgesGeometry args={[new THREE.CylinderGeometry(1, 1, realHeight, 6)]} />
+        <lineBasicMaterial color="#1a1a1a" linewidth={1.5} />
+      </lineSegments>
+    </group>
+  );
 }

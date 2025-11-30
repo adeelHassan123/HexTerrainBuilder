@@ -1,99 +1,118 @@
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card } from "@/components/ui/card"
 import { useMapStore } from "@/store/useMapStore"
-import { Download, Save, Trash2 } from "lucide-react"
+import { Plus, Trash2, Save, Eraser } from "lucide-react"
 
 interface ToolbarProps {
   onSaveLoadOpen: () => void
-  onExport: (format: string) => void
+  onExport?: (format: string) => void
 }
 
-export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
-  const { 
-    selectedTool, 
-    setTool, 
-    selectedTileHeight, 
-    setTileHeight
+export function Toolbar({ onSaveLoadOpen }: ToolbarProps) {
+  const {
+    selectedTool,
+    setTool,
+    selectedTileHeight,
+    setTileHeight,
+    clearMap,
+    deleteSelected,
+    selectedObjectId,
+    setSelectedObject
   } = useMapStore()
 
-  const tools = [
-    { id: 'select', label: 'Select', icon: null },
-    { id: 'tile', label: 'Add Tile', icon: null },
-    { id: 'asset', label: 'Add Asset', icon: null },
-    { id: 'delete', label: 'Delete', icon: <Trash2 className="w-4 h-4" /> },
-  ]
-
-  const heights = [
-    { value: 1, label: '1"' },
-    { value: 2, label: '2"' },
-    { value: 5, label: '5"' },
-  ]
-
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-background/80 backdrop-blur-md p-2 rounded-lg shadow-lg border flex items-center gap-4 z-50">
-      <Tabs 
-        value={selectedTool} 
-        onValueChange={(v) => setTool(v as any)}
-        className="flex items-center gap-2"
+    <Card className="fixed bottom-6 left-1/2 -translate-x-1/2 p-3 shadow-xl z-40 bg-background/95 backdrop-blur-sm border-primary/20 flex items-center gap-4">
+
+      {/* Tile Tools */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant={selectedTool === 'tile' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => {
+            setTool('tile');
+            setSelectedObject(null); // Deselect any object when switching to tile mode
+          }}
+          className="gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Tile
+        </Button>
+      </div>
+
+      <div className="h-8 w-px bg-border" />
+
+      {/* Delete Action */}
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => deleteSelected()}
+        disabled={!selectedObjectId}
+        className="gap-2"
+        title="Delete selected object (Delete key)"
       >
-        <TabsList className="grid grid-cols-4 h-auto p-1">
-          {tools.map((tool) => (
-            <TabsTrigger 
-              key={tool.id} 
-              value={tool.id}
-              className="flex flex-col items-center justify-center gap-1 h-auto px-3 py-2 text-xs"
-            >
-              {tool.icon}
-              <span>{tool.label}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+        <Trash2 className="w-4 h-4" />
+        Delete
+      </Button>
 
-      <div className="h-8 w-px bg-border mx-1" />
+      <div className="h-8 w-px bg-border" />
 
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">Height:</span>
-        <Tabs 
-          value={selectedTileHeight.toString()} 
-          onValueChange={(v) => setTileHeight(parseInt(v) as any)}
-          className="flex items-center gap-2"
+      {/* Tile Height Selection */}
+      <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-md">
+        <span className="text-xs font-semibold px-2 text-muted-foreground">Tile Height:</span>
+        <Button
+          variant={selectedTileHeight === 1 ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => { setTileHeight(1); setTool('tile'); }}
+          className={`h-7 text-xs ${selectedTileHeight === 1 ? 'bg-white shadow-sm text-green-700' : ''}`}
         >
-          <TabsList className="h-auto p-1">
-            {heights.map((height) => (
-              <TabsTrigger 
-                key={height.value} 
-                value={height.value.toString()}
-                className="h-8 w-12"
-              >
-                {height.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </div>
-
-      <div className="h-8 w-px bg-border mx-1" />
-
-      <div className="flex items-center gap-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="gap-2"
-          onClick={onSaveLoadOpen}
-        >
-          <Save className="h-4 w-4" />
-          <span>Save</span>
+          1cm Base
         </Button>
-        <Button 
-          size="sm" 
-          className="gap-2"
-          onClick={() => onExport('png')}
+        <Button
+          variant={selectedTileHeight === 2 ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => { setTileHeight(2); setTool('tile'); }}
+          className={`h-7 text-xs ${selectedTileHeight === 2 ? 'bg-white shadow-sm text-green-600' : ''}`}
         >
-          <Download className="h-4 w-4" />
-          <span>Export</span>
+          2cm Hill
+        </Button>
+        <Button
+          variant={selectedTileHeight === 5 ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => { setTileHeight(5); setTool('tile'); }}
+          className={`h-7 text-xs ${selectedTileHeight === 5 ? 'bg-white shadow-sm text-green-500' : ''}`}
+        >
+          5cm Peak
         </Button>
       </div>
-    </div>
+
+      <div className="h-8 w-px bg-border" />
+
+      {/* Global Actions */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => clearMap()}
+          className="gap-2 text-muted-foreground hover:text-destructive"
+        >
+          <Eraser className="w-4 h-4" />
+          Clear Map
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onSaveLoadOpen()}
+          className="gap-2"
+        >
+          <Save className="w-4 h-4" />
+          Save/Load
+        </Button>
+      </div>
+
+      {/* Help Text */}
+      <div className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs text-white/80 bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm pointer-events-none">
+        Left-click to place • Select & Delete to remove
+      </div>
+    </Card>
   )
 }

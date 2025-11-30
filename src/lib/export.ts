@@ -1,10 +1,36 @@
 import * as THREE from 'three';
 import { useMapStore } from "@/store/useMapStore"
+import type { Tile, PlacedAsset } from "@/types"
 
 type ExportFormat = 'woocommerce' | 'json' | 'glb' | 'png'
 
 export function useExport() {
-  const { tiles, assets, tableSize, projectName } = useMapStore()
+  const state = useMapStore();
+  const { tiles, assets, tableSize, projectName } = state;
+  
+  // Convert tiles to array, handling both Map and object cases
+  const allTiles: Tile[] = [];
+  if (tiles instanceof Map) {
+    tiles.forEach((tileArray) => {
+      if (Array.isArray(tileArray)) {
+        allTiles.push(...tileArray);
+      }
+    });
+  } else if (typeof tiles === 'object' && tiles !== null) {
+    Object.values(tiles).forEach((tileArray: unknown) => {
+      if (Array.isArray(tileArray)) {
+        allTiles.push(...tileArray);
+      }
+    });
+  }
+
+  // Convert assets to array, handling both Map and object cases
+  let assetArray: PlacedAsset[] = [];
+  if (assets instanceof Map) {
+    assetArray = Array.from(assets.values());
+  } else if (typeof assets === 'object' && assets !== null) {
+    assetArray = Object.values(assets);
+  }
   
   // Generate a unique filename with timestamp
   const getFilename = (extension: string) => {
@@ -27,16 +53,14 @@ export function useExport() {
       'Download 1 URL', 'Download 2 name', 'Download 2 URL'
     ]
     
-    // Group tiles by height
-    const tileGroups = Array.from(tiles.values()).reduce<Record<string, number>>((acc, tile) => {
-      const key = `Hex Tile (${tile.height}")`
+    const tileGroups = allTiles.reduce<Record<string, number>>((acc, tile) => {
+      const key = `Hex Tile (${tile.height}cm)`
       acc[key] = (acc[key] || 0) + 1
       return acc
     }, {})
     
-    // Group assets by type
-    const assetGroups = Array.from(assets.values()).reduce<Record<string, number>>((acc, asset) => {
-      const name = asset.type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    const assetGroups = assetArray.reduce<Record<string, number>>((acc, asset) => {
+      const name = asset.type.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
       acc[name] = (acc[name] || 0) + 1
       return acc
     }, {})
@@ -222,12 +246,12 @@ export function useExport() {
         gridSize: 1,
         units: 'inches'
       },
-      tiles: Array.from(tiles.values()).map(t => ({
+      tiles: allTiles.map((t: Tile) => ({
         ...t,
         position: { q: t.q, r: t.r },
         height: t.height
       })),
-      assets: Array.from(assets.values()).map(a => ({
+      assets: assetArray.map(a => ({
         ...a,
         position: { q: a.q, r: a.r },
         type: a.type,

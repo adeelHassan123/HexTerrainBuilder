@@ -22,7 +22,7 @@ export const cubeToAxial = (q: number, r: number, _s: number): Axial => {
 export const axialToWorld = (q: number, r: number, height = 0): [number, number, number] => {
   const x = HEX_SIZE * (Math.sqrt(3) * q + Math.sqrt(3) / 2 * r);
   const z = HEX_SIZE * (3 / 2 * r);
-  const y = height * 0.1; // 1 unit = 1cm real-world
+  const y = height * 0.5; // HEIGHT_UNIT = 0.5 (1cm real-world = 0.5 Three.js units)
   return [x, y, z];
 };
 

@@ -3,23 +3,19 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stats } from '@react-three/drei';
 import { Scene } from '@/components/3d/Scene';
 import { TableBoundary } from '@/components/3d/TableBoundary';
-import { MinimapView, MinimapContainer } from '@/components/3d/Minimap';
 import { Toolbar } from '@/components/ui/Toolbar';
 import { AssetLibrary } from '@/components/ui/AssetLibrary';
 import { InventoryPanel } from '@/components/ui/InventoryPanel';
 import { LayerControls } from '@/components/ui/LayerControls';
 import { SaveLoadDialog } from '@/components/ui/SaveLoadDialog';
 import { Toaster } from '@/components/ui/sonner';
-import { useMapStore } from '@/store/useMapStore';
 import { useExport } from '@/lib/export';
 import * as THREE from 'three';
 
 // Main App Component
 export default function App() {
   const [saveLoadOpen, setSaveLoadOpen] = useState(false);
-  const { tableSize } = useMapStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const minimapRef = useRef<HTMLDivElement>(null);
   const { exportMap } = useExport();
 
   const handleExport = (format: string) => {
@@ -96,11 +92,14 @@ export default function App() {
             minDistance={5}
             maxDistance={50}
             target={[0, 0, 0]}
-            dampingFactor={0.05}
+            dampingFactor={0.1}
             enableDamping={true}
+            rotateSpeed={0.5}
+            panSpeed={0.8}
+            zoomSpeed={0.8}
           />
 
-          <gridHelper args={[50, 50, '#cbd5e1', '#e2e8f0']} position={[0, -0.1, 0]} />
+          {/* Removed square gridHelper - replaced with hexagonal GridOverlay */}
           <axesHelper args={[5]} />
           <Stats />
 

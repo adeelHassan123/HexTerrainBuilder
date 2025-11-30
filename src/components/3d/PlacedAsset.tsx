@@ -1,10 +1,11 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, Suspense, useMemo } from 'react';
 import { useLoader, useFrame } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
 import { axialToWorld } from '../../lib/hexMath';
 import { useMapStore } from '../../store/useMapStore';
 import { PlacedAsset as PlacedAssetType, ASSET_CATALOG } from '../../types';
+import { ErrorBoundary } from './ErrorBoundary';
 
 interface PlacedAssetProps {
   asset: PlacedAssetType;
@@ -13,24 +14,21 @@ interface PlacedAssetProps {
   onSelect: (assetId: string) => void;
 }
 
-export function PlacedAsset({ asset, totalHeightAtHex, isSelected, onSelect }: PlacedAssetProps) {
+// Internal component that handles model loading
+function ModelContent({ modelPath, asset, totalHeightAtHex, isSelected, onSelect }: {
+  modelPath: string;
+  asset: PlacedAssetType;
+  totalHeightAtHex: number;
+  isSelected: boolean;
+  onSelect: (assetId: string) => void;
+}) {
   const groupRef = useRef<THREE.Group>(null);
-
-  // Find model path from catalog
-  const assetDef = ASSET_CATALOG.find(a => a.id === asset.type);
-  const modelPath = assetDef ? assetDef.path : '/models/tree_pine.glb'; // Fallback
-
   const { rotateAsset, removeAsset } = useMapStore();
+  
+  // useLoader must be called unconditionally - Suspense will handle loading state
+  const gltf = useLoader(GLTFLoader, modelPath);
 
-  // Always call useLoader at the same location, catch errors gracefully
-  let gltf: any = null;
-  try {
-    gltf = useLoader(GLTFLoader, modelPath);
-  } catch (e) {
-    console.error(`Failed to load model: ${modelPath}`, e);
-  }
-
-  const yPos = totalHeightAtHex * 0.5 + 0.5; // Sit on top of the hex stack (using 0.5 unit scaling)
+  const yPos = totalHeightAtHex * 0.5 + 0.5;
   const [x, , z] = axialToWorld(asset.q, asset.r, 0);
 
   // Handle keyboard events for rotation and deletion
@@ -41,9 +39,9 @@ export function PlacedAsset({ asset, totalHeightAtHex, isSelected, onSelect }: P
       if (e.key === 'Delete' || e.key === 'Backspace') {
         removeAsset(asset.id);
       } else if (e.key === '+' || e.key === '=') {
-        rotateAsset(asset.id, Math.PI / 6); // Rotate 30 degrees
+        rotateAsset(asset.id, Math.PI / 6);
       } else if (e.key === '-') {
-        rotateAsset(asset.id, -Math.PI / 6); // Rotate -30 degrees
+        rotateAsset(asset.id, -Math.PI / 6);
       }
     };
 
@@ -64,26 +62,18 @@ export function PlacedAsset({ asset, totalHeightAtHex, isSelected, onSelect }: P
     };
   }, [isSelected, asset.id, rotateAsset, removeAsset]);
 
-  // Highlight when selected
-  useFrame(() => {
+  // Optimize: Only update emissive when selection changes, not every frame
+  useEffect(() => {
     if (groupRef.current && gltf && gltf.scene) {
       const scene = gltf.scene;
       scene.traverse((node: THREE.Object3D) => {
         if (node instanceof THREE.Mesh) {
           const material = node.material as THREE.MeshStandardMaterial;
-          // Clone material to avoid affecting other instances
-          // Note: In a real app, we might want to use a custom shader or outline pass for better performance
-          // But for now, emissive is fine, but we must be careful not to mutate shared materials permanently
-          // Actually, cloning materials per frame is bad. 
-          // Better: Clone the scene once (which we do below) and then modify materials.
-
-          if (isSelected) {
-            if (material.emissive) {
+          if (material.emissive) {
+            if (isSelected) {
               material.emissive.setHex(0xfbbf24);
               material.emissiveIntensity = 0.5;
-            }
-          } else {
-            if (material.emissive) {
+            } else {
               material.emissive.setHex(0x000000);
               material.emissiveIntensity = 0;
             }
@@ -91,9 +81,9 @@ export function PlacedAsset({ asset, totalHeightAtHex, isSelected, onSelect }: P
         }
       });
     }
-  });
+  }, [isSelected, gltf]);
 
-  if (!gltf) {
+  if (!gltf || !gltf.scene) {
     // Placeholder: simple cone for missing models
     return (
       <group
@@ -132,5 +122,53 @@ export function PlacedAsset({ asset, totalHeightAtHex, isSelected, onSelect }: P
         </mesh>
       )}
     </group>
+  );
+}
+
+// Placeholder component for loading/error states
+function Placeholder({ asset, totalHeightAtHex, isSelected, onSelect }: PlacedAssetProps) {
+  const yPos = totalHeightAtHex * 0.5 + 0.5;
+  const [x, , z] = axialToWorld(asset.q, asset.r, 0);
+
+  return (
+    <group
+      position={[x, yPos, z]}
+      rotation={[0, asset.rotationY, 0]}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(asset.id);
+      }}
+    >
+      <mesh castShadow receiveShadow>
+        <coneGeometry args={[0.5, 1.5, 8]} />
+        <meshStandardMaterial color={isSelected ? '#fbbf24' : '#888888'} />
+      </mesh>
+    </group>
+  );
+}
+
+export function PlacedAsset(props: PlacedAssetProps) {
+  // Find model path from catalog
+  const assetDef = ASSET_CATALOG.find(a => a.id === props.asset.type);
+  const modelPath = assetDef ? assetDef.path : '/models/tree_pine.glb'; // Fallback
+
+  return (
+    <ErrorBoundary 
+      fallback={<Placeholder {...props} />}
+      onError={(error) => {
+        // Silently handle model loading errors - show placeholder instead
+        console.warn(`Failed to load model: ${modelPath}`, error.message);
+      }}
+    >
+      <Suspense fallback={<Placeholder {...props} />}>
+        <ModelContent
+          modelPath={modelPath}
+          asset={props.asset}
+          totalHeightAtHex={props.totalHeightAtHex}
+          isSelected={props.isSelected}
+          onSelect={props.onSelect}
+        />
+      </Suspense>
+    </ErrorBoundary>
   );
 }

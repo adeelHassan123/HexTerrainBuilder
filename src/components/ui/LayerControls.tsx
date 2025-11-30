@@ -4,7 +4,7 @@ import { useMapStore } from "@/store/useMapStore"
 import { Eye, EyeOff } from "lucide-react"
 
 export function LayerControls() {
-  const { showLowerLayers, setShowLowerLayers } = useMapStore()
+  const { showLowerLayers, setShowLowerLayers, showGrid, setShowGrid } = useMapStore()
 
   return (
     <Card className="fixed top-4 left-1/2 -translate-x-1/2 p-3 shadow-xl z-40 bg-background/95 backdrop-blur-sm border-primary/20">
@@ -26,6 +26,25 @@ export function LayerControls() {
             <>
               <EyeOff className="w-4 h-4" />
               <span>Hide Lower</span>
+            </>
+          )}
+        </Button>
+        <Button
+          variant={showGrid ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setShowGrid(!showGrid)}
+          className="flex items-center gap-2"
+          aria-label={showGrid ? 'Hide grid' : 'Show grid'}
+        >
+          {showGrid ? (
+            <>
+              <Eye className="w-4 h-4" />
+              <span>Grid</span>
+            </>
+          ) : (
+            <>
+              <EyeOff className="w-4 h-4" />
+              <span>Grid</span>
             </>
           )}
         </Button>

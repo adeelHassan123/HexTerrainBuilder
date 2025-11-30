@@ -14,10 +14,12 @@ interface MapState {
   projectName: string;
   selectedObjectId: string | null; // ID of selected tile or asset
   showLowerLayers: boolean; // Show/hide lower layers in stacks
+  showGrid: boolean; // Show/hide grid overlay
 
   // Actions
   setTool: (tool: ToolMode) => void;
   setShowLowerLayers: (show: boolean) => void;
+  setShowGrid: (show: boolean) => void;
   setTileHeight: (h: TileHeight) => void;
   setAssetType: (type: string) => void;
   setSelectedObject: (id: string | null) => void;
@@ -43,13 +45,15 @@ export const useMapStore = create<MapState>()(
         selectedTool: 'tile',
         selectedTileHeight: 1,
         selectedAssetType: ASSET_CATALOG[0].id,
-        tableSize: { w: 20, h: 16 },
+        tableSize: { widthCm: 90, heightCm: 60 }, // Medium rectangle table
         projectName: 'Untitled Map',
         selectedObjectId: null,
         showLowerLayers: true,
+        showGrid: true, // Grid visible by default
 
         setTool: (tool) => set({ selectedTool: tool, selectedObjectId: null }),
         setShowLowerLayers: (show) => set({ showLowerLayers: show }),
+        setShowGrid: (show) => set({ showGrid: show }),
         setTileHeight: (h) => set({ selectedTileHeight: h }),
         setAssetType: (type) => set({ selectedAssetType: type }),
         setSelectedObject: (id) => set({ selectedObjectId: id }),

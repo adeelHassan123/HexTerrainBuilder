@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import { View } from '@react-three/drei';
 import { useMapStore } from '../../store/useMapStore';
@@ -8,20 +8,21 @@ import * as THREE from 'three';
 
 // This component must be inside Canvas
 interface MinimapViewProps {
-  containerRef: React.RefObject<HTMLDivElement | null>;
+  containerRef: React.RefObject<HTMLElement>;
 }
 
 export function MinimapView({ containerRef }: MinimapViewProps) {
-  const { tableSize, assets, getTotalHeightAt, selectedTileId, setSelectedTile } = useMapStore();
+  const { tableSize, assets, getTotalHeightAt, selectedObjectId, setSelectedObject } = useMapStore();
   const { camera } = useThree();
 
-  const width = tableSize.w * Math.sqrt(3);
-  const depth = tableSize.h * 1.5;
+  // Use real-world dimensions
+  const width = tableSize.widthCm;
+  const depth = tableSize.heightCm;
 
   // Update camera indicator position
   const cameraDirection = new THREE.Vector3();
   const [cameraAngle, setCameraAngle] = useState(0);
-  
+
   useFrame(() => {
     camera.getWorldDirection(cameraDirection);
     setCameraAngle(Math.atan2(cameraDirection.x, cameraDirection.z));
@@ -47,11 +48,11 @@ export function MinimapView({ containerRef }: MinimapViewProps) {
   }, [camera, width, depth, containerRef]);
 
   return (
-    <View track={containerRef}>
+    <View track={containerRef as React.RefObject<HTMLElement>}>
       <color attach="background" args={['#1e293b']} />
       <ambientLight intensity={1} />
       <directionalLight position={[10, 20, 10]} intensity={1.5} />
-      
+
       {/* Render the hex grid and assets */}
       <HexGrid />
       {Array.from(assets.values()).map((asset) => (
@@ -59,11 +60,11 @@ export function MinimapView({ containerRef }: MinimapViewProps) {
           key={asset.id}
           asset={asset}
           totalHeightAtHex={getTotalHeightAt(asset.q, asset.r)}
-          isSelected={selectedTileId === asset.id}
-          onSelect={(id) => setSelectedTile(id)}
+          isSelected={selectedObjectId === asset.id}
+          onSelect={(id) => setSelectedObject(id)}
         />
       ))}
-      
+
       {/* Camera indicator - blue semi-transparent cone showing direction */}
       <group position={[camera.position.x, 1, camera.position.z]} rotation={[0, cameraAngle, 0]}>
         <mesh>

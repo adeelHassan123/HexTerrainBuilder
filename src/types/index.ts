@@ -24,9 +24,18 @@ export interface PlacedAsset {
 export type ToolMode = 'tile' | 'asset' | 'select' | 'delete';
 
 export interface TableSize {
-  w: number; // Width in Three.js units
-  h: number; // Height in Three.js units
+  widthCm: number; // Width in centimeters (real-world)
+  heightCm: number; // Height in centimeters (real-world)
 }
+
+// Standard tabletop gaming table sizes
+export const STANDARD_TABLE_SIZES = [
+  { name: 'Small Square (60×60cm)', widthCm: 60, heightCm: 60 },
+  { name: 'Medium Rectangle (90×60cm)', widthCm: 90, heightCm: 60 },
+  { name: 'Large Rectangle (120×60cm)', widthCm: 120, heightCm: 60 },
+  { name: 'Large Square (120×120cm)', widthCm: 120, heightCm: 120 },
+] as const;
+
 
 export interface DraggedAsset {
   type: string;

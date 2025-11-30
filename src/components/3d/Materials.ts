@@ -41,7 +41,7 @@ export const createRockMaterial = () => {
  * @param tileHeight Height of the individual tile (1, 2, or 5)
  * @returns Appropriate material for the tile
  */
-export const getMaterialForTile = (stackLevel: number, tileHeight: number): THREE.MeshStandardMaterial => {
+export const getMaterialForTile = (stackLevel: number, _tileHeight: number): THREE.MeshStandardMaterial => {
     // Level 0: Always grass (ground level)
     if (stackLevel === 0) {
         return createGrassMaterial();

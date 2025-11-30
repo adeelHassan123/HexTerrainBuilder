@@ -1,7 +1,6 @@
 import * as THREE from 'three';
-import { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { axialToWorld } from '../../lib/hexMath';
+import { useRef, useMemo, useEffect } from 'react';
+import { axialToWorld, HEX_SIZE } from '../../lib/hexMath';
 import { getMaterialForTile, addColorVariation } from './Materials';
 import type { Tile } from '../../types';
 
@@ -29,19 +28,19 @@ export function HexTile({ tile, totalHeightBelow, isSelected, onSelect }: HexTil
   const yPos = totalHeightBelow * 0.5 + realHeight / 2;
   const [x, , z] = axialToWorld(tile.q, tile.r, 0);
 
-  // Selection emissive glow animation
-  useFrame(() => {
+  // Optimize: Only update emissive when selection changes, not every frame
+  useEffect(() => {
     if (meshRef.current) {
       const mat = meshRef.current.material as THREE.MeshStandardMaterial;
       if (isSelected) {
-        mat.emissive = new THREE.Color('#fbbf24'); // Amber glow for selected
+        mat.emissive = new THREE.Color('#fbbf24');
         mat.emissiveIntensity = 0.6;
       } else {
         mat.emissive = new THREE.Color('#000000');
         mat.emissiveIntensity = 0;
       }
     }
-  });
+  }, [isSelected]);
 
   return (
     <group
@@ -57,13 +56,14 @@ export function HexTile({ tile, totalHeightBelow, isSelected, onSelect }: HexTil
         receiveShadow
         userData={{ hexTile: { q: tile.q, r: tile.r } }}
       >
-        <cylinderGeometry args={[1, 1, realHeight, 6]} />
+        {/* CRITICAL FIX: Use HEX_SIZE instead of hardcoded 1 */}
+        <cylinderGeometry args={[HEX_SIZE, HEX_SIZE, realHeight, 6]} />
         <primitive object={material} attach="material" />
       </mesh>
 
       {/* Black outline */}
       <lineSegments ref={edgesRef}>
-        <edgesGeometry args={[new THREE.CylinderGeometry(1, 1, realHeight, 6)]} />
+        <edgesGeometry args={[new THREE.CylinderGeometry(HEX_SIZE, HEX_SIZE, realHeight, 6)]} />
         <lineBasicMaterial color="#1a1a1a" linewidth={1.5} />
       </lineSegments>
     </group>

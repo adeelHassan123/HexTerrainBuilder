@@ -133,3 +133,48 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Mobile-specific optimizations */
+@layer utilities {
+  /* Prevent text selection on mobile for better touch experience */
+  @media (max-width: 768px) {
+    .touch-none {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+  }
+
+  /* Better touch targets for mobile */
+  @media (max-width: 768px) {
+    button, a, [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
+  /* Prevent zoom on input focus on iOS */
+  @media (max-width: 768px) {
+    input, select, textarea {
+      font-size: 16px;
+    }
+  }
+
+  /* Smooth scrolling for mobile */
+  @media (max-width: 768px) {
+    * {
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  /* Hide scrollbars on mobile but keep functionality */
+  @media (max-width: 768px) {
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}

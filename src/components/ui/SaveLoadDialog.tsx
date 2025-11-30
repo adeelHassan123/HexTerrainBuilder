@@ -114,10 +114,10 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="w-[95vw] sm:w-full sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{activeTab === 'save' ? 'Save Project' : 'Load Project'}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">{activeTab === 'save' ? 'Save Project' : 'Load Project'}</DialogTitle>
+          <DialogDescription className="text-sm">
             {activeTab === 'save' 
               ? 'Save your current project to continue working on it later.'
               : 'Load a previously saved project to continue working on it.'}
@@ -126,33 +126,39 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
         
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="save" onClick={() => setActiveTab('save')}>
-              <Save className="h-4 w-4 mr-2" /> Save
+            <TabsTrigger value="save" onClick={() => setActiveTab('save')} className="text-xs sm:text-sm">
+              <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> 
+              <span className="hidden xs:inline">Save</span>
+              <span className="xs:hidden">Save</span>
             </TabsTrigger>
-            <TabsTrigger value="load" onClick={() => { setActiveTab('load'); loadSavedProjects(); }}>
-              <FolderOpen className="h-4 w-4 mr-2" /> Load
+            <TabsTrigger value="load" onClick={() => { setActiveTab('load'); loadSavedProjects(); }} className="text-xs sm:text-sm">
+              <FolderOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> 
+              <span className="hidden xs:inline">Load</span>
+              <span className="xs:hidden">Load</span>
             </TabsTrigger>
           </TabsList>
           
           <TabsContent value="save" className="mt-4 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="projectName">Project Name</Label>
+              <Label htmlFor="projectName" className="text-sm">Project Name</Label>
               <Input
                 id="projectName"
                 placeholder="My Awesome Map"
                 value={projectName || currentProjectName}
                 onChange={(e) => setProjectName(e.target.value)}
+                className="text-base sm:text-sm"
               />
             </div>
             
-            <div className="flex justify-between pt-2">
-              <Button variant="outline" onClick={handleExport}>
-                <Download className="h-4 w-4 mr-2" />
-                Export to File
+            <div className="flex flex-col sm:flex-row gap-2 sm:justify-between pt-2">
+              <Button variant="outline" onClick={handleExport} className="w-full sm:w-auto text-sm">
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                <span className="hidden xs:inline">Export to File</span>
+                <span className="xs:hidden">Export</span>
               </Button>
               
-              <Button onClick={handleSave} disabled={!projectName && !currentProjectName}>
-                <Save className="h-4 w-4 mr-2" />
+              <Button onClick={handleSave} disabled={!projectName && !currentProjectName} className="w-full sm:w-auto text-sm">
+                <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                 Save Project
               </Button>
             </div>
@@ -160,24 +166,24 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
           
           <TabsContent value="load" className="mt-4">
             <div className="space-y-4">
-              <div className="rounded-lg border p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-medium">Local Storage</h3>
-                  <div className="text-sm text-muted-foreground">
+              <div className="rounded-lg border p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+                  <h3 className="font-medium text-sm sm:text-base">Local Storage</h3>
+                  <div className="text-xs sm:text-sm text-muted-foreground">
                     {savedProjects.length} saved project{savedProjects.length !== 1 ? 's' : ''}
                   </div>
                 </div>
                 
                 {savedProjects.length > 0 ? (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <div className="space-y-2 max-h-48 sm:max-h-60 overflow-y-auto">
                     {savedProjects.map((project) => (
                       <div 
                         key={project.id}
                         className="flex items-center justify-between p-2 rounded hover:bg-muted/50 cursor-pointer"
                         onClick={() => handleLoad(project)}
                       >
-                        <div>
-                          <div className="font-medium">{project.name}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">{project.name}</div>
                           <div className="text-xs text-muted-foreground">
                             {new Date(project.date).toLocaleString()}
                           </div>
@@ -185,7 +191,7 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                          className="h-8 w-8 sm:h-8 sm:w-8 text-destructive hover:bg-destructive/10 flex-shrink-0 ml-2"
                           onClick={(e) => handleDelete(project.id, e)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -195,8 +201,8 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
                   </div>
                 ) : (
                   <div className="text-center py-6 text-muted-foreground">
-                    <p>No saved projects found.</p>
-                    <p className="text-sm">Save a project to see it here.</p>
+                    <p className="text-sm">No saved projects found.</p>
+                    <p className="text-xs sm:text-sm">Save a project to see it here.</p>
                   </div>
                 )}
               </div>
@@ -211,7 +217,7 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
               </div>
               
               <div className="text-center">
-                <label className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 cursor-pointer">
+                <label className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 sm:h-10 px-4 py-2 cursor-pointer w-full sm:w-auto">
                   <Upload className="h-4 w-4 mr-2" />
                   Import from File
                   <input 
@@ -226,9 +232,9 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
           </TabsContent>
         </Tabs>
         
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            <X className="h-4 w-4 mr-2" />
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto text-sm">
+            <X className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
             Cancel
           </Button>
         </DialogFooter>

@@ -1,4 +1,4 @@
-import { Suspense, useState, useRef } from 'react';
+import { Suspense, useState, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stats } from '@react-three/drei';
 import { Scene } from '@/components/3d/Scene';
@@ -15,8 +15,18 @@ import * as THREE from 'three';
 // Main App Component
 export default function App() {
   const [saveLoadOpen, setSaveLoadOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { exportMap } = useExport();
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleExport = (format: string) => {
     if (format === 'png' && canvasRef.current) {
@@ -28,7 +38,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-background relative">
+    <div className="h-screen w-screen overflow-hidden bg-background relative touch-none">
       <Canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full z-0"
@@ -43,6 +53,7 @@ export default function App() {
           toneMapping: THREE.ACESFilmicToneMapping
         }}
         shadows
+        dpr={typeof window !== 'undefined' ? [1, Math.min(window.devicePixelRatio, 2)] : 1}
       >
         <Suspense fallback={null}>
           {/* Sky-blue background */}
@@ -94,9 +105,13 @@ export default function App() {
             target={[0, 0, 0]}
             dampingFactor={0.1}
             enableDamping={true}
-            rotateSpeed={0.5}
-            panSpeed={0.8}
-            zoomSpeed={0.8}
+            rotateSpeed={isMobile ? 0.3 : 0.5}
+            panSpeed={isMobile ? 0.5 : 0.8}
+            zoomSpeed={isMobile ? 0.5 : 0.8}
+            touches={{
+              ONE: 2, // Rotate
+              TWO: 1  // Zoom
+            }}
           />
 
           {/* Removed square gridHelper - replaced with hexagonal GridOverlay */}
@@ -122,7 +137,7 @@ export default function App() {
 
       <Toaster position="top-center" />
 
-      <div className="fixed bottom-2 left-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+      <div className="fixed bottom-2 left-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded hidden sm:block">
         HexMap 3D Builder v1.0.0
       </div>
     </div>

@@ -21,7 +21,7 @@ export function Toolbar({ onSaveLoadOpen }: ToolbarProps) {
   } = useMapStore()
 
   return (
-    <Card className="fixed bottom-0 left-0 right-0 sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 p-2 sm:p-3 shadow-xl z-40 bg-background/95 backdrop-blur-sm border-primary/20 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 rounded-t-lg sm:rounded-lg sm:max-w-fit sm:mx-auto">
+    <Card className="fixed bottom-0 left-0 right-0 sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 p-2 sm:p-3 shadow-xl z-40 bg-background/95 backdrop-blur-sm border-primary/20 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 rounded-t-lg sm:rounded-lg sm:max-w-fit sm:mx-auto pointer-events-auto">
       
       {/* Mobile: Primary Actions Row */}
       <div className="flex items-center gap-2 sm:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start">

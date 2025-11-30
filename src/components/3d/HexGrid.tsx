@@ -54,16 +54,17 @@ export function HexGrid() {
     setIsValidPlacement(true);
   };
 
-  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+  const handleClick = (e: ThreeEvent<PointerEvent>) => {
     try {
       e.stopPropagation();
+      // Prevent default to avoid scrolling on mobile
+      e.nativeEvent.preventDefault();
+      
       if (!hoveredHex || !isValidPlacement) return;
 
       if (selectedTool === 'tile') {
-        if (e.button === 0) {
-          // Left click - add tile
-          addTile(hoveredHex.q, hoveredHex.r);
-        }
+        // Works for both mouse and touch
+        addTile(hoveredHex.q, hoveredHex.r);
       } else if (selectedTool === 'asset') {
         // Place asset on hex
         addAsset(hoveredHex.q, hoveredHex.r);
@@ -80,6 +81,40 @@ export function HexGrid() {
       }
     } catch (error) {
       console.error('Error in handleClick:', error);
+    }
+  };
+
+  // Handle pointer down for better mobile support
+  const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
+    try {
+      e.stopPropagation();
+      e.nativeEvent.preventDefault();
+      
+      // On mobile touch, handle immediately
+      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+        const axial = worldToAxial(e.point.x, e.point.z);
+        const inBounds = checkBounds(axial.q, axial.r);
+        
+        if (inBounds) {
+          if (selectedTool === 'tile') {
+            addTile(axial.q, axial.r);
+          } else if (selectedTool === 'asset') {
+            addAsset(axial.q, axial.r);
+          } else {
+            // Select mode
+            const key = getKey(axial.q, axial.r);
+            const tilesAt = tiles.get(key) || [];
+            if (tilesAt.length > 0) {
+              const topTile = tilesAt[tilesAt.length - 1];
+              setSelectedObject(topTile.id);
+            } else {
+              setSelectedObject(null);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error in handlePointerDown:', error);
     }
   };
 
@@ -103,6 +138,7 @@ export function HexGrid() {
     <group
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
+      onPointerDown={handlePointerDown}
       onClick={handleClick}
       onContextMenu={(e) => {
         e.nativeEvent.preventDefault();

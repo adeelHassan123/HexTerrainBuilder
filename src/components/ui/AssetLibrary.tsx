@@ -76,7 +76,7 @@ export function AssetLibrary() {
   return (
     <>
       {/* Desktop: Fixed Panel */}
-      <Card className="hidden md:flex fixed right-4 top-20 w-80 h-[calc(100vh-7rem)] flex-col z-30 shadow-xl border-primary/20 bg-background/95 backdrop-blur-sm">
+      <Card className="hidden md:flex fixed right-4 top-20 w-80 h-[calc(100vh-7rem)] flex-col z-30 shadow-xl border-primary/20 bg-background/95 backdrop-blur-sm pointer-events-auto">
         <AssetLibraryContent />
       </Card>
 
@@ -86,7 +86,7 @@ export function AssetLibrary() {
           <Button
             variant="outline"
             size="sm"
-            className="fixed bottom-20 right-4 md:hidden z-40 shadow-lg bg-background/95 backdrop-blur-sm"
+            className="fixed bottom-20 right-4 md:hidden z-40 shadow-lg bg-background/95 backdrop-blur-sm pointer-events-auto"
             aria-label="Open Asset Library"
           >
             <Package className="w-4 h-4 mr-2" />

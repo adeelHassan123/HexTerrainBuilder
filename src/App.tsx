@@ -6,7 +6,6 @@ import { TableBoundary } from '@/components/3d/TableBoundary';
 import { Toolbar } from '@/components/ui/Toolbar';
 import { AssetLibrary } from '@/components/ui/AssetLibrary';
 import { InventoryPanel } from '@/components/ui/InventoryPanel';
-import { LayerControls } from '@/components/ui/LayerControls';
 import { SaveLoadDialog } from '@/components/ui/SaveLoadDialog';
 import { Toaster } from '@/components/ui/sonner';
 import { useExport } from '@/lib/export';
@@ -38,10 +37,10 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-background relative touch-none">
+    <div className="h-screen w-screen overflow-hidden bg-background relative">
       <Canvas
         ref={canvasRef}
-        className="absolute inset-0 w-full h-full z-0"
+        className="absolute inset-0 w-full h-full z-0 touch-none"
         camera={{
           position: [15, 15, 15],
           fov: 60,
@@ -109,8 +108,13 @@ export default function App() {
             panSpeed={isMobile ? 0.5 : 0.8}
             zoomSpeed={isMobile ? 0.5 : 0.8}
             touches={{
-              ONE: 2, // Rotate
-              TWO: 1  // Zoom
+              ONE: isMobile ? 0 : 2, // Disable camera control on single touch for mobile - allows tile placement
+              TWO: 1  // Zoom with two fingers
+            }}
+            mouseButtons={{
+              LEFT: 0, // Disable left mouse button for camera (let tile placement work)
+              MIDDLE: 1, // Pan with middle button
+              RIGHT: 2  // Rotate with right button
             }}
           />
 
@@ -128,7 +132,6 @@ export default function App() {
       <Toolbar onSaveLoadOpen={() => setSaveLoadOpen(true)} onExport={handleExport} />
       <AssetLibrary />
       <InventoryPanel />
-      <LayerControls />
 
       <SaveLoadDialog
         open={saveLoadOpen}

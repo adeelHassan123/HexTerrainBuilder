@@ -14,7 +14,7 @@ export function InventoryPanel() {
   const totalAssets = assets.size;
 
   return (
-    <Card className="fixed top-16 sm:top-20 left-2 sm:left-4 w-auto sm:w-48 flex flex-row sm:flex-col z-30 shadow-xl border-primary/20 bg-background/95 backdrop-blur-sm">
+    <Card className="fixed top-16 sm:top-20 left-2 sm:left-4 w-auto sm:w-48 flex flex-row sm:flex-col z-30 shadow-xl border-primary/20 bg-background/95 backdrop-blur-sm pointer-events-auto">
       <CardHeader className="p-2 sm:p-4 border-b-0 sm:border-b border-r sm:border-r-0">
         <CardTitle className="text-sm sm:text-lg whitespace-nowrap">Map Stats</CardTitle>
       </CardHeader>

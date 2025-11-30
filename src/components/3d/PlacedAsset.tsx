@@ -1,5 +1,5 @@
-import { useRef, useEffect, Suspense, useMemo } from 'react';
-import { useLoader, useFrame } from '@react-three/fiber';
+import { useRef, useEffect, Suspense } from 'react';
+import { useLoader } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
 import { axialToWorld } from '../../lib/hexMath';

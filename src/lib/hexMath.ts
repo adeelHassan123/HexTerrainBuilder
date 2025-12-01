@@ -1,9 +1,13 @@
 // Real-world scale: 1 unit in Three.js = 1 cm in real world
 // Hex size: Balanced for performance and precision
 // Reducing total hex count while maintaining usable snapping
-export const HEX_SIZE = 1.5; // Radius (center to vertex) - sweet spot for performance
-export const HEX_FLAT_TO_FLAT = HEX_SIZE * Math.sqrt(3); // ≈ 2.6cm
-export const HEX_POINT_TO_POINT = HEX_SIZE * 2; // = 3cm
+// Desired flat-to-flat distance in real-world cm (flat top hex)
+export const HEX_FLAT_TO_FLAT_CM = 5; // 5 cm flat-to-flat (real-world)
+
+// Compute HEX_SIZE (radius center-to-vertex) so flat-to-flat == HEX_FLAT_TO_FLAT_CM
+export const HEX_SIZE = HEX_FLAT_TO_FLAT_CM / Math.sqrt(3); // center-to-vertex radius
+export const HEX_FLAT_TO_FLAT = HEX_SIZE * Math.sqrt(3);
+export const HEX_POINT_TO_POINT = HEX_SIZE * 2;
 
 export interface Axial {
   q: number;
@@ -20,7 +24,7 @@ export const axialToCube = (q: number, r: number): Cube => {
   return { q, r, s: -q - r };
 };
 
-export const cubeToAxial = (q: number, r: number, _s: number): Axial => {
+export const cubeToAxial = (q: number, r: number): Axial => {
   return { q, r };
 };
 
@@ -38,9 +42,9 @@ export const worldToAxial = (x: number, z: number): Axial => {
 };
 
 export const hexRound = (q: number, r: number): Axial => {
-  let cubeQ = q;
-  let cubeR = r;
-  let cubeS = -q - r;
+  const cubeQ = q;
+  const cubeR = r;
+  const cubeS = -q - r;
 
   let rx = Math.round(cubeQ);
   let ry = Math.round(cubeR);
@@ -74,13 +78,16 @@ export const getKey = (q: number, r: number) => `${q},${r}`;
 /**
  * Get the 6 corner points of a hexagon in world space
  * Returns array of [x, z] coordinates (y is not included as it's flat)
+ * CRITICAL: For flat-top hexagons, corners start at -30° (π/6 offset from 0°)
  */
 export const getHexCorners = (q: number, r: number): [number, number][] => {
   const [centerX, , centerZ] = axialToWorld(q, r, 0);
   const corners: [number, number][] = [];
 
+  // FLAT-TOP hexagons: corners at -30°, 30°, 90°, 150°, 210°, 270° 
+  // This makes the TOP and BOTTOM edges flat (horizontal)
   for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i; // 60 degrees per corner
+    const angle = (Math.PI / 3) * i - (Math.PI / 6); // 60° spacing, offset by -30° for flat-top
     const x = centerX + HEX_SIZE * Math.cos(angle);
     const z = centerZ + HEX_SIZE * Math.sin(angle);
     corners.push([x, z]);
@@ -114,6 +121,20 @@ export const getHexGridForTable = (widthCm: number, heightCm: number): Axial[] =
   }
 
   return hexes;
+};
+
+/**
+ * Build a map of hex center positions for fast snapping lookups
+ * Returns Map<key, { q, r, x, z }>
+ */
+export const buildHexCenterMap = (widthCm: number, heightCm: number) => {
+  const map = new Map<string, { q: number; r: number; x: number; z: number }>();
+  const hexes = getHexGridForTable(widthCm, heightCm);
+  for (const h of hexes) {
+    const [x, , z] = axialToWorld(h.q, h.r, 0);
+    map.set(getKey(h.q, h.r), { q: h.q, r: h.r, x, z });
+  }
+  return map;
 };
 
 /**

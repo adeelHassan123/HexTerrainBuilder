@@ -1,10 +1,10 @@
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import './index.css'; // load Tailwind CSS
+import './index.css'; 
 
 // Add error boundary logging
 window.addEventListener('error', (event) => {
-  // Suppress model loading errors - they're handled by Error Boundaries
+  // Suppress model loading errors , they're handled by Error Boundaries
   if (event.error?.message?.includes('Could not load') || 
       event.error?.message?.includes('is not valid JSON')) {
     event.preventDefault(); // Prevent error from crashing the app

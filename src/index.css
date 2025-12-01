@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -100,7 +101,7 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --radius: 1rem;
   }
   .dark {
     --background: 222.2 84% 4.9%;
@@ -131,6 +132,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 }
 
@@ -185,5 +187,65 @@
       touch-action: pan-x pan-y pinch-zoom;
       -webkit-tap-highlight-color: transparent;
     }
+  }
+}
+
+/* Premium Micro-Interactions */
+@layer utilities {
+  /* Soft scale animation on hover */
+  @keyframes soft-scale {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.05); }
+  }
+
+  /* Soft pulse for active elements */
+  @keyframes soft-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4); }
+    50% { opacity: 0.9; box-shadow: 0 0 0 8px rgba(56, 189, 248, 0); }
+  }
+
+  /* Fade in animation */
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Scale up pop animation */
+  @keyframes scale-up-pop {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Scale down fade animation */
+  @keyframes scale-down-fade {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(0.5); opacity: 0; }
+  }
+
+  /* Ghost drag effect */
+  .ghost-drag {
+    transform: scale(1.1);
+    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.5));
+    opacity: 0.9;
+  }
+
+  /* Panel auto-fade during drag */
+  .panel-fade {
+    opacity: 0.3;
+    transition: opacity 0.2s ease-in-out;
+  }
+
+  /* Vignette effect */
+  .vignette {
+    position: relative;
+  }
+  .vignette::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(15, 23, 42, 0.4) 100%);
+    pointer-events: none;
+    z-index: 1;
   }
 }

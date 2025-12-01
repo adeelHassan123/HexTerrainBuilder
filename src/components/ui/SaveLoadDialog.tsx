@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useMapStore } from "@/store/useMapStore"
+import type { MapState } from "@/store/useMapStore"
 import { Save, FolderOpen, X, Download, Upload, Trash2 } from "lucide-react"
 
 type SaveLoadDialogProps = {
@@ -17,6 +18,7 @@ type ProjectFile = {
   name: string
   date: string
   thumbnail?: string
+  data?: Partial<MapState>
 }
 
 export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
@@ -28,7 +30,7 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
   
   // Load saved projects from localStorage
   const loadSavedProjects = () => {
-    const projects = JSON.parse(localStorage.getItem('hexMapProjects') || '[]')
+    const projects = JSON.parse(localStorage.getItem('hexMapProjects') || '[]') as ProjectFile[]
     setSavedProjects(projects)
     return projects
   }
@@ -63,8 +65,10 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
     onOpenChange(false)
   }
   
-  const handleLoad = (project: any) => {
-    loadProject(project.data)
+  const handleLoad = (project: ProjectFile) => {
+    if (project.data) {
+      loadProject(project.data)
+    }
     onOpenChange(false)
   }
   
@@ -80,10 +84,10 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
     if (!file) return
     
     const reader = new FileReader()
-    reader.onload = (event) => {
+    reader.onload = (event: ProgressEvent<FileReader>) => {
       try {
         const projectData = JSON.parse(event.target?.result as string)
-        loadProject(projectData.data)
+        if (projectData?.data) loadProject(projectData.data as Partial<MapState>)
         onOpenChange(false)
       } catch (error) {
         console.error('Error loading project file', error)
@@ -124,7 +128,7 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
           </DialogDescription>
         </DialogHeader>
         
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'save' | 'load')} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="save" onClick={() => setActiveTab('save')} className="text-xs sm:text-sm">
               <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> 

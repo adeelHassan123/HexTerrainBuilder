@@ -17,12 +17,12 @@ export function HexTile({ tile, totalHeightBelow, isSelected, onSelect }: HexTil
 
   // Get material based on stack level (intelligent terrain progression)
   const material = useMemo(() => {
-    const baseMaterial = getMaterialForTile(tile.stackLevel, tile.height);
+    const baseMaterial = getMaterialForTile(tile.stackLevel);
     // Add subtle variation to avoid repetition
     const seed = tile.q * 1000 + tile.r * 100 + tile.stackLevel;
     addColorVariation(baseMaterial, seed);
     return baseMaterial;
-  }, [tile.stackLevel, tile.height, tile.q, tile.r]);
+  }, [tile.stackLevel, tile.q, tile.r]);
 
   const realHeight = Math.max(0.1, tile.height * 0.5); // HEIGHT_UNIT = 0.5 for Three.js scaling (1cm = 0.5 units)
   const yPos = totalHeightBelow * 0.5 + realHeight / 2;
@@ -50,6 +50,21 @@ export function HexTile({ tile, totalHeightBelow, isSelected, onSelect }: HexTil
         onSelect(tile.id);
       }}
     >
+      {/* Contact Shadow for depth perception */}
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -realHeight / 2 - 0.01, 0]}
+        receiveShadow
+      >
+        <circleGeometry args={[HEX_SIZE * 0.9, 32]} />
+        <meshBasicMaterial
+          color="#000000"
+          transparent
+          opacity={0.15}
+        />
+      </mesh>
+
+      {/* Main hex tile */}
       <mesh
         ref={meshRef}
         castShadow
@@ -61,10 +76,10 @@ export function HexTile({ tile, totalHeightBelow, isSelected, onSelect }: HexTil
         <primitive object={material} attach="material" />
       </mesh>
 
-      {/* Black outline */}
+      {/* Enhanced edge definition */}
       <lineSegments ref={edgesRef}>
         <edgesGeometry args={[new THREE.CylinderGeometry(HEX_SIZE, HEX_SIZE, realHeight, 6)]} />
-        <lineBasicMaterial color="#1a1a1a" linewidth={1.5} />
+        <lineBasicMaterial color="#1a1a1a" linewidth={2} opacity={0.8} transparent />
       </lineSegments>
     </group>
   );

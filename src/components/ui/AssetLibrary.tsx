@@ -1,104 +1,114 @@
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useMapStore } from "@/store/useMapStore"
 import { ASSET_CATALOG } from "@/types"
-import { Check, Package } from "lucide-react"
+import { Check, Package, ChevronRight, ChevronLeft } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const CATEGORIES = ["Trees", "Rocks", "Buildings", "Decorations"];
 
-const AssetLibraryContent = () => {
+export function AssetLibrary() {
   const { selectedAssetType, setAssetType, setTool } = useMapStore()
+  const [isOpen, setIsOpen] = useState(false)
+  const [activeCategory, setActiveCategory] = useState("Trees")
 
-  const handleClick = (assetId: string) => {
+  const handleSelect = (assetId: string) => {
     setAssetType(assetId)
     setTool('asset')
   }
 
   return (
-    <>
-      <CardHeader className="p-3 sm:p-4 border-b">
-        <CardTitle className="text-base sm:text-lg">Asset Library</CardTitle>
-      </CardHeader>
+    <div
+      className={cn(
+        "fixed right-0 top-1/2 -translate-y-1/2 z-30 flex items-start transition-all duration-500 ease-out",
+        isOpen ? "translate-x-0" : "translate-x-[calc(100%-3rem)]"
+      )}
+    >
+      {/* Toggle Handle */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setIsOpen(!isOpen)}
+        className="h-24 w-12 rounded-l-xl bg-slate-900/90 backdrop-blur-md border-y border-l border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800 shadow-xl -mr-1 z-40"
+      >
+        {isOpen ? <ChevronRight className="w-6 h-6" /> : <ChevronLeft className="w-6 h-6" />}
+      </Button>
 
-      <Tabs defaultValue="Trees" className="flex-1 flex flex-col">
-        <TabsList className="w-full rounded-none border-b px-1 sm:px-2 justify-start overflow-x-auto">
-          {CATEGORIES.map((category) => (
-            <TabsTrigger key={category} value={category} className="text-xs px-2 sm:px-3 whitespace-nowrap">
-              {category}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      {/* Main Panel */}
+      <div className="w-80 h-[70vh] bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-l-2xl shadow-2xl flex flex-col overflow-hidden">
 
-        <ScrollArea className="flex-1">
-          <div className="p-2 sm:p-4">
-            {CATEGORIES.map((category) => (
-              <TabsContent key={category} value={category} className="m-0">
-                <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-3">
-                  {ASSET_CATALOG.filter(a => a.category === category).map((asset) => {
-                    const isSelected = selectedAssetType === asset.id;
-                    return (
-                      <Button
-                        key={asset.id}
-                        variant={isSelected ? 'default' : 'outline'}
-                        className={`h-auto flex-col p-1.5 sm:p-2 relative ${isSelected ? 'ring-2 ring-primary ring-offset-2' : 'hover:border-primary/50'}`}
-                        onClick={() => handleClick(asset.id)}
-                      >
-                        {isSelected && (
-                          <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-primary text-primary-foreground rounded-full p-0.5">
-                            <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                          </div>
-                        )}
-                        <div className="w-full aspect-square bg-muted/50 rounded-md mb-1 sm:mb-2 overflow-hidden flex items-center justify-center">
-                          <div className="text-2xl sm:text-4xl">
-                            {category === 'Trees' ? '🌲' : 
-                             category === 'Rocks' ? '🪨' : 
-                             category === 'Buildings' ? '🏠' : '🌿'}
-                          </div>
-                        </div>
-                        <span className="text-xs font-medium line-clamp-1">{asset.name}</span>
-                      </Button>
-                    );
-                  })}
-                </div>
-              </TabsContent>
+        {/* Header */}
+        <div className="p-4 border-b border-slate-700/50 bg-slate-900/50">
+          <div className="flex items-center gap-2 mb-4">
+            <Package className="w-5 h-5 text-blue-400" />
+            <h2 className="font-bold text-white tracking-tight">Asset Library</h2>
+          </div>
+
+          {/* Category Tabs */}
+          <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap",
+                  activeCategory === cat
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                    : "bg-slate-800/50 text-slate-400 hover:bg-slate-700 hover:text-white"
+                )}
+              >
+                {cat}
+              </button>
             ))}
           </div>
+        </div>
+
+        {/* Grid Content */}
+        <ScrollArea className="flex-1 p-4">
+          <div className="grid grid-cols-2 gap-3 pb-4">
+            {ASSET_CATALOG.filter(a => a.category === activeCategory).map((asset) => {
+              const isSelected = selectedAssetType === asset.id
+
+              return (
+                <button
+                  key={asset.id}
+                  onClick={() => handleSelect(asset.id)}
+                  className={cn(
+                    "group relative aspect-square rounded-xl border transition-all duration-300 overflow-hidden flex flex-col items-center justify-center gap-2",
+                    isSelected
+                      ? "bg-blue-500/10 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                      : "bg-slate-800/30 border-slate-700/50 hover:bg-slate-800 hover:border-slate-600"
+                  )}
+                >
+                  {/* Selection Indicator */}
+                  {isSelected && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+
+                  {/* Asset Preview (Emoji for now, 3D preview later) */}
+                  <div className={cn(
+                    "text-5xl transition-transform duration-300 filter drop-shadow-lg",
+                    isSelected ? "scale-110" : "group-hover:scale-110"
+                  )}>
+                    {activeCategory === 'Trees' ? '🌲' :
+                      activeCategory === 'Rocks' ? '🪨' :
+                        activeCategory === 'Buildings' ? '🏠' : '🌿'}
+                  </div>
+
+                  <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-slate-900/90 to-transparent text-center">
+                    <span className="text-xs font-medium text-slate-200 truncate block">
+                      {asset.name}
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
         </ScrollArea>
-      </Tabs>
-    </>
-  )
-}
-
-export function AssetLibrary() {
-  return (
-    <>
-      {/* Desktop: Fixed Panel */}
-      <Card className="hidden md:flex fixed right-4 top-20 w-80 h-[calc(100vh-7rem)] flex-col z-30 shadow-xl border-primary/20 bg-background/95 backdrop-blur-sm pointer-events-auto">
-        <AssetLibraryContent />
-      </Card>
-
-      {/* Mobile: Sheet/Drawer */}
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="fixed bottom-20 right-4 md:hidden z-40 shadow-lg bg-background/95 backdrop-blur-sm pointer-events-auto"
-            aria-label="Open Asset Library"
-          >
-            <Package className="w-4 h-4 mr-2" />
-            Assets
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="right" className="w-full sm:w-[90vw] sm:max-w-sm p-0 flex flex-col">
-          <Card className="flex flex-col h-full border-0 shadow-none rounded-none">
-            <AssetLibraryContent />
-          </Card>
-        </SheetContent>
-      </Sheet>
-    </>
+      </div>
+    </div>
   )
 }

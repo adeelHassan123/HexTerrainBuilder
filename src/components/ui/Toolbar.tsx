@@ -17,7 +17,8 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
     selectedTileHeight,
     setTileHeight,
     deleteSelected,
-    selectedObjectId
+    selectedObjectId,
+    isMobile
   } = useMapStore()
   const { clearMap, rotateMode, setRotateMode } = useMapStore()
 
@@ -31,7 +32,10 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
   ]
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-4 pointer-events-none">
+    <div className={cn(
+      "fixed left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-4 pointer-events-none",
+      isMobile ? "bottom-4" : "bottom-8"
+    )}>
 
       {/* Height Selector - Context Aware (Only shows when Tile tool is active) */}
       <div className={cn(
@@ -55,7 +59,10 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
       </div>
 
       {/* Main Creation Bar */}
-      <Card className="p-2 shadow-2xl bg-slate-900/90 backdrop-blur-xl border-slate-700/50 rounded-2xl flex items-center gap-2 pointer-events-auto ring-1 ring-white/10">
+      <Card className={cn(
+        "shadow-2xl bg-slate-900/90 backdrop-blur-xl border-slate-700/50 rounded-2xl flex items-center gap-2 pointer-events-auto ring-1 ring-white/10",
+        isMobile ? "p-1.5 gap-1" : "p-2 gap-2"
+      )}>
         <TooltipProvider delayDuration={100}>
           {tools.map((tool) => {
             const isActive = selectedTool === tool.id
@@ -87,7 +94,8 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
                       }
                     }}
                     className={cn(
-                      "w-12 h-12 rounded-xl transition-all duration-300 relative group",
+                      "rounded-xl transition-all duration-300 relative group",
+                      isMobile ? "w-10 h-10" : "w-12 h-12",
                       isActive
                         ? "bg-blue-500/20 text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.3)]"
                         : tool.danger

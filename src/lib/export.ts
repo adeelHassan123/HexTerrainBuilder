@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 import { useMapStore } from "@/store/useMapStore"
-import type { Tile, PlacedAsset } from "@/types"
+import { Tile, PlacedAsset, TILE_PRICES, ASSET_CATALOG, TileHeight } from "@/types"
 
 type ExportFormat = 'woocommerce' | 'json' | 'glb' | 'png'
 
 export function useExport() {
   const state = useMapStore();
   const { tiles, assets, tableSize, projectName } = state;
-  
+
   // Convert tiles to array, handling both Map and object cases
   const allTiles: Tile[] = [];
   if (tiles instanceof Map) {
@@ -31,13 +31,13 @@ export function useExport() {
   } else if (typeof assets === 'object' && assets !== null) {
     assetArray = Object.values(assets);
   }
-  
+
   // Generate a unique filename with timestamp
   const getFilename = (extension: string) => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     return `${projectName || 'hexmap'}-${timestamp}.${extension}`
   }
-  
+
   // Export to WooCommerce CSV format
   const exportToWooCommerce = () => {
     const headers = [
@@ -52,33 +52,31 @@ export function useExport() {
       'Attribute 2 visible', 'Attribute 2 global', 'Meta: _custom_field_name', 'Download 1 name',
       'Download 1 URL', 'Download 2 name', 'Download 2 URL'
     ]
-    
+
     const tileGroups = allTiles.reduce<Record<string, number>>((acc, tile) => {
       const key = `Hex Tile (${tile.height}cm)`
       acc[key] = (acc[key] || 0) + 1
       return acc
     }, {})
-    
+
     const assetGroups = assetArray.reduce<Record<string, number>>((acc, asset) => {
       const name = asset.type.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
       acc[name] = (acc[name] || 0) + 1
       return acc
     }, {})
-    
+
     // Create CSV rows
     const rows = [
       // Header row
       headers.join(','),
-      
+
       // Tiles
       ...Object.entries(tileGroups).map(([name, quantity]) => {
-        const price = (() => {
-          if (name.includes('1"')) return '4.99'
-          if (name.includes('2"')) return '9.99'
-          if (name.includes('5"')) return '19.99'
-          return '4.99'
-        })()
-        
+        // Extract height from name "Hex Tile (5cm)" -> 5
+        const heightMatch = name.match(/\((\d+)cm\)/);
+        const height = heightMatch ? parseInt(heightMatch[1]) as TileHeight : 1;
+        const price = (TILE_PRICES[height] || 4.99).toFixed(2);
+
         return [
           'simple', // Type
           `HEX-${name.replace(/\s+/g, '-').toUpperCase()}`, // SKU
@@ -127,17 +125,18 @@ export function useExport() {
           '1', // Attribute 2 global
         ].join(',')
       }),
-      
+
       // Assets
       ...Object.entries(assetGroups).map(([name, quantity]) => {
-        const type = name.split(' ')[0].toLowerCase()
-        const price = (() => {
-          if (type === 'tree') return '2.99'
-          if (type === 'rock') return '3.99'
-          if (type === 'building') return '7.99'
-          return '1.99'
-        })()
-        
+        // Find asset def by name (reverse lookup or just use what we have)
+        // Since we grouped by name, we need to find the asset def that matches this name
+        const assetDef = ASSET_CATALOG.find(a => {
+          const formattedName = a.name.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          return formattedName === name || a.name === name;
+        }) || ASSET_CATALOG.find(a => a.name === name);
+
+        const price = (assetDef?.price || 1.99).toFixed(2);
+
         return [
           'simple', // Type
           `ASSET-${name.replace(/\s+/g, '-').toUpperCase()}`, // SKU
@@ -187,12 +186,12 @@ export function useExport() {
         ].join(',')
       })
     ]
-    
+
     // Create CSV content
     const csvContent = rows.join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
-    
+
     // Trigger download
     const link = document.createElement('a')
     link.setAttribute('href', url)
@@ -202,12 +201,12 @@ export function useExport() {
     link.click()
     document.body.removeChild(link)
   }
-  
+
   // Export to GLB format (placeholder - would need Three.js GLTFExporter)
   const exportToGLB = async () => {
     // This would use Three.js GLTFExporter in a real implementation
     alert('GLB export would be implemented here with Three.js GLTFExporter')
-    
+
     // Example of what this might look like:
     /*
     const exporter = new GLTFExporter()
@@ -221,7 +220,7 @@ export function useExport() {
     }, { binary: true })
     */
   }
-  
+
   // Export to PNG (screenshot)
   const exportToPNG = (renderer: THREE.WebGLRenderer) => {
     const dataURL = renderer.domElement.toDataURL('image/png')
@@ -230,7 +229,7 @@ export function useExport() {
     link.download = getFilename('png')
     link.click()
   }
-  
+
   // Export to JSON
   const exportToJSON = () => {
     const data = {
@@ -258,10 +257,10 @@ export function useExport() {
         rotation: { y: a.rotationY }
       }))
     }
-    
+
     const dataStr = JSON.stringify(data, null, 2)
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
-    
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr)
+
     const link = document.createElement('a')
     link.setAttribute('href', dataUri)
     link.setAttribute('download', getFilename('json'))
@@ -270,7 +269,7 @@ export function useExport() {
     link.click()
     document.body.removeChild(link)
   }
-  
+
   // Main export function
   const exportMap = (format: ExportFormat, renderer?: THREE.WebGLRenderer) => {
     try {
@@ -296,7 +295,7 @@ export function useExport() {
       alert(`Export failed: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
-  
+
   return {
     exportMap,
     formats: ['woocommerce', 'json', 'glb', 'png'] as const

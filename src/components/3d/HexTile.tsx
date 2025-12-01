@@ -11,9 +11,12 @@ interface HexTileProps {
   onSelect: (tileId: string) => void;
 }
 
+import { useMapStore } from '../../store/useMapStore';
+
 export function HexTile({ tile, totalHeightBelow, isSelected, onSelect }: HexTileProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const edgesRef = useRef<THREE.LineSegments>(null);
+  const { selectedTool } = useMapStore();
 
   // Get material based on stack level (intelligent terrain progression)
   const material = useMemo(() => {
@@ -46,6 +49,10 @@ export function HexTile({ tile, totalHeightBelow, isSelected, onSelect }: HexTil
     <group
       position={[x, yPos, z]}
       onClick={(e) => {
+        if (selectedTool === 'tile' || selectedTool === 'asset') {
+          // Allow propagation so HexGrid can handle placement
+          return;
+        }
         e.stopPropagation();
         onSelect(tile.id);
       }}

@@ -1,100 +1,78 @@
-import { useState, useEffect, useRef } from "react"
-import { Card } from "@/components/ui/card"
-import { useMapStore } from "@/store/useMapStore"
-import { Mountain, Package, ChevronLeft, ChevronRight } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { useEffect, useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { useMapStore } from '@/store/useMapStore';
+import { cn } from '@/lib/utils';
+import { Activity } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export function MapStatsPanel() {
-    const { tiles, assets } = useMapStore()
-    const [isCollapsed, setIsCollapsed] = useState(false)
+    const { tiles, assets } = useMapStore();
+    const [fps, setFps] = useState(0);
+    const [isOpen, setIsOpen] = useState(true);
 
-    // Count total tiles
-    const totalTiles = Array.from(tiles.values()).reduce((sum, tileArray) => {
-        return sum + (Array.isArray(tileArray) ? tileArray.length : 0);
-    }, 0);
+    // Calculate counts
+    const tileCount = Array.from(tiles.values()).reduce((acc, stack) => acc + stack.length, 0);
+    const assetCount = assets.size;
 
-    const totalAssets = assets.size;
-
-    // FPS tracking
-    const [fps, setFps] = useState(0)
-    const framesRef = useRef(0)
-    const lastTimeRef = useRef<number>(0)
-
+    // Simple FPS counter
     useEffect(() => {
-        let rafId: number
-        lastTimeRef.current = performance.now()
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let animationFrameId: number;
 
-        const loop = (t: number) => {
-            framesRef.current += 1
-            const delta = t - lastTimeRef.current
-            if (delta >= 500) {
-                const currentFps = Math.round((framesRef.current / delta) * 1000)
-                setFps(currentFps)
-                framesRef.current = 0
-                lastTimeRef.current = t
+        const loop = () => {
+            const now = performance.now();
+            frameCount++;
+            if (now - lastTime >= 1000) {
+                setFps(Math.round((frameCount * 1000) / (now - lastTime)));
+                frameCount = 0;
+                lastTime = now;
             }
-            rafId = requestAnimationFrame(loop)
-        }
+            animationFrameId = requestAnimationFrame(loop);
+        };
 
-        rafId = requestAnimationFrame(loop)
-        return () => cancelAnimationFrame(rafId)
-    }, [])
+        loop();
+        return () => cancelAnimationFrame(animationFrameId);
+    }, []);
 
     return (
-        <div
-            className={cn(
-                "fixed left-0 top-1/2 -translate-y-1/2 z-30 flex items-start transition-all duration-500 ease-out",
-                isCollapsed ? "-translate-x-[calc(100%-3rem)]" : "translate-x-0"
-            )}
-        >
-            {/* Main Panel */}
-            <Card className="w-48 py-6 px-4 bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-r-2xl shadow-2xl flex flex-col gap-6">
-
-                {/* Stats Items */}
-                <div className="space-y-1">
-                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Project Stats</p>
-
-                    <div className="flex items-center justify-between group">
-                        <div className="flex items-center gap-2 text-slate-300">
-                            <Mountain className="w-4 h-4 text-emerald-400" />
-                            <span className="text-sm">Tiles</span>
-                        </div>
-                        <span className="text-lg font-bold text-white font-mono">{totalTiles}</span>
-                    </div>
-
-                    <div className="w-full h-px bg-slate-800/50 my-2" />
-
-                    <div className="flex items-center justify-between group">
-                        <div className="flex items-center gap-2 text-slate-300">
-                            <Package className="w-4 h-4 text-blue-400" />
-                            <span className="text-sm">Assets</span>
-                        </div>
-                        <span className="text-lg font-bold text-white font-mono">{totalAssets}</span>
-                    </div>
-
-                    <div className="w-full h-px bg-slate-800/50 my-2" />
-
-                    {/* Removed Value (currency) as it's not important) */}
-                    <div className="flex items-center justify-between group">
-                        <div className="flex items-center gap-2 text-slate-300">
-                            <span className="text-sm">FPS</span>
-                        </div>
-                        <span className="text-lg font-bold text-white font-mono">{fps}</span>
-                    </div>
-                </div>
-
-            </Card>
-
-            {/* Toggle Handle */}
+        <div className="fixed top-24 left-6 z-30 flex items-start gap-2 pointer-events-none">
+            {/* Toggle Button */}
             <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className="h-24 w-12 rounded-r-xl bg-slate-900/90 backdrop-blur-md border-y border-r border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800 shadow-xl -ml-1 z-40"
+                onClick={() => setIsOpen(!isOpen)}
+                className={cn(
+                    "pointer-events-auto h-8 w-8 rounded-full bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800 shadow-lg transition-all duration-300",
+                    isOpen && "bg-slate-800 text-white"
+                )}
             >
-                {isCollapsed ? <ChevronRight className="w-6 h-6" /> : <ChevronLeft className="w-6 h-6" />}
+                <Activity className="w-4 h-4" />
             </Button>
+
+            {/* Stats Panel */}
+            <div className={cn(
+                "overflow-hidden transition-all duration-500 ease-out pointer-events-auto",
+                isOpen ? "w-56 opacity-100 translate-x-0" : "w-0 opacity-0 -translate-x-4"
+            )}>
+                <Card className="p-3 bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 text-slate-200 shadow-2xl rounded-xl">
+                    <div className="space-y-2 text-xs font-medium">
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-400">Tiles</span>
+                            <span className="font-mono text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded">{tileCount}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-400">Assets</span>
+                            <span className="font-mono text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">{assetCount}</span>
+                        </div>
+                        <div className="h-px bg-slate-800 my-1" />
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-400">FPS</span>
+                            <span className="font-mono text-white font-bold text-sm">{fps}</span>
+                        </div>
+                    </div>
+                </Card>
+            </div>
         </div>
-    )
+    );
 }

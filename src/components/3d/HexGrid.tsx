@@ -38,11 +38,13 @@ export function HexGrid() {
     startPosition: { x: number; y: number } | null;
     hasMoved: boolean;
     startHex: { q: number; r: number } | null;
+    pointerType: 'mouse' | 'touch' | 'pen';
   }>({
     startTime: 0,
     startPosition: null,
     hasMoved: false,
     startHex: null,
+    pointerType: 'mouse',
   });
 
   // Thresholds for touch detection
@@ -94,19 +96,14 @@ export function HexGrid() {
         setHoverScale(1);
       }
 
-      // Track movement for touch gestures
-      if (e.pointerType === 'touch' && touchStateRef.current.startPosition) {
+      // Track movement for touch gestures AND mouse drags
+      if (touchStateRef.current.startPosition) {
         const dx = e.nativeEvent.clientX - touchStateRef.current.startPosition.x;
         const dy = e.nativeEvent.clientY - touchStateRef.current.startPosition.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance > TAP_MAX_DISTANCE) {
           touchStateRef.current.hasMoved = true;
-          // If movement detected, re-enable OrbitControls for rotation/pan
-          const setControlsEnabled = (window as WindowWithHexGridControls).__hexGridControlsEnabled;
-          if (setControlsEnabled) {
-            setControlsEnabled(true);
-          }
         }
       }
     } catch (error) {
@@ -128,81 +125,56 @@ export function HexGrid() {
         startPosition: null,
         hasMoved: false,
         startHex: null,
+        pointerType: 'mouse',
       };
     }
   };
 
   const handleClick = (e: ThreeEvent<PointerEvent>) => {
-    try {
-      // Only handle mouse clicks, not touch (touch is handled in pointerUp)
-      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
-        return;
-      }
-
-      e.stopPropagation();
-      if (!hoveredHex || !isValidPlacement) return;
-
-      if (selectedTool === 'tile') {
-        addTile(hoveredHex.q, hoveredHex.r);
-      } else if (selectedTool === 'asset') {
-        addAsset(hoveredHex.q, hoveredHex.r);
-      } else {
-        // Select Mode (default if not tile/asset)
-        const key = getKey(hoveredHex.q, hoveredHex.r);
-        const tilesAt = tiles.get(key) || [];
-        if (tilesAt.length > 0) {
-          const topTile = tilesAt[tilesAt.length - 1];
-          setSelectedObject(topTile.id);
-        } else {
-          setSelectedObject(null);
-        }
-      }
-    } catch (error) {
-      console.error('Error in handleClick:', error);
-    }
+    // We handle clicks in handlePointerUp to unify mouse/touch logic and prevent drag-clicks
+    e.stopPropagation();
   };
 
-  // Handle pointer down - track touch start
+  // Handle pointer down - track start
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
     try {
-      // Only track touch events for mobile
-      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
-        // Temporarily disable OrbitControls to prevent rotation on tap
-        const setControlsEnabled = (window as WindowWithHexGridControls).__hexGridControlsEnabled;
-        if (setControlsEnabled) {
-          setControlsEnabled(false);
-        }
+      // Temporarily disable OrbitControls to prevent rotation on tap (if needed)
+      // For mouse, we usually want OrbitControls to work for drag, so we don't disable it here unless we are sure.
+      // But if we disable it, we can't rotate. 
+      // Strategy: Track movement. If moved, it's a drag (rotate/pan). If not moved, it's a click.
 
-        touchStateRef.current = {
-          startTime: Date.now(),
-          startPosition: {
-            x: e.nativeEvent.clientX,
-            y: e.nativeEvent.clientY,
-          },
-          hasMoved: false,
-          startHex: worldToAxial(e.point.x, e.point.z),
-        };
-      }
+      touchStateRef.current = {
+        startTime: Date.now(),
+        startPosition: {
+          x: e.nativeEvent.clientX,
+          y: e.nativeEvent.clientY,
+        },
+        hasMoved: false,
+        startHex: worldToAxial(e.point.x, e.point.z),
+        pointerType: e.pointerType as 'mouse' | 'touch' | 'pen',
+      };
+
+      // For touch, we might want to disable controls initially to see if it's a tap
+      // BUT for rotation to work, we must NOT disable controls.
+      // OrbitControls will handle the drag. We just need to detect if it WAS a drag to avoid placement.
+      // So we do nothing here regarding controls.
     } catch (error) {
       console.error('Error in handlePointerDown:', error);
     }
   };
 
   // Handle pointer up - place tile only if it was a tap (not a drag)
-  const handlePointerUp = (e: ThreeEvent<PointerEvent>) => {
+  const handlePointerUp = () => {
     try {
-      // Only handle touch events for tile placement
-      if (e.pointerType !== 'touch' && e.pointerType !== 'pen') {
-        return;
+      const touchState = touchStateRef.current;
+
+      // Always re-enable controls on up
+      const setControlsEnabled = (window as WindowWithHexGridControls).__hexGridControlsEnabled;
+      if (setControlsEnabled) {
+        setControlsEnabled(true);
       }
 
-      const touchState = touchStateRef.current;
       if (!touchState.startHex) {
-        // Re-enable controls if no touch state
-        const setControlsEnabled = (window as WindowWithHexGridControls).__hexGridControlsEnabled;
-        if (setControlsEnabled) {
-          setControlsEnabled(true);
-        }
         return;
       }
 
@@ -212,7 +184,9 @@ export function HexGrid() {
 
       // Only place tile if it was a quick tap (no drag) and in bounds
       if (wasTap && inBounds && isValidPlacement) {
-        // Keep controls disabled during tap to prevent rotation
+        // Double check that we are still over the same hex (or close enough)
+        // For mouse, we can check hoveredHex. For touch, we rely on startHex.
+
         if (selectedTool === 'tile') {
           addTile(touchState.startHex.q, touchState.startHex.r);
         } else if (selectedTool === 'asset') {
@@ -230,18 +204,13 @@ export function HexGrid() {
         }
       }
 
-      // Re-enable OrbitControls after handling the touch
-      const setControlsEnabled = (window as WindowWithHexGridControls).__hexGridControlsEnabled;
-      if (setControlsEnabled) {
-        setControlsEnabled(true);
-      }
-
       // Reset touch state
       touchStateRef.current = {
         startTime: 0,
         startPosition: null,
         hasMoved: false,
         startHex: null,
+        pointerType: 'mouse',
       };
     } catch (error) {
       console.error('Error in handlePointerUp:', error);

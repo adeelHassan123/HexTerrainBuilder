@@ -13,6 +13,8 @@ import { Toaster } from '@/components/ui/sonner';
 import { useExport } from '@/lib/export';
 import * as THREE from 'three';
 import { useMapStore } from '@/store/useMapStore'
+import { WelcomeScreen } from '@/components/ui/WelcomeScreen';
+import { AnimatePresence } from 'framer-motion';
 
 type WindowWithHexGridControls = Window & {
   __hexGridControlsEnabled?: (enabled: boolean) => void
@@ -20,13 +22,13 @@ type WindowWithHexGridControls = Window & {
 
 // Main App Component
 export default function App() {
+  const [showWelcome, setShowWelcome] = useState(true);
   const [saveLoadOpen, setSaveLoadOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [controlsEnabled, setControlsEnabled] = useState(true);
   const [showStats, setShowStats] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { exportMap } = useExport();
-  const { rotateMode, setRotateMode, selectedObjectId, rotateAsset } = useMapStore();
+  const { rotateMode, setRotateMode, selectedObjectId, rotateAsset, isMobile, setIsMobile } = useMapStore();
 
   // When rotateMode is active, allow click+drag on the canvas to rotate selected asset
   useEffect(() => {
@@ -84,14 +86,14 @@ export default function App() {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [setIsMobile]);
 
   // Expose controls state to HexGrid via window (temporary solution)
   useEffect(() => {
     type WindowWithHexGridControls = Window & {
       __hexGridControlsEnabled?: (enabled: boolean) => void
     }
-    ;(window as WindowWithHexGridControls).__hexGridControlsEnabled = setControlsEnabled;
+      ; (window as WindowWithHexGridControls).__hexGridControlsEnabled = setControlsEnabled;
     return () => {
       delete (window as WindowWithHexGridControls).__hexGridControlsEnabled;
     };
@@ -119,9 +121,9 @@ export default function App() {
   };
 
   // Improve mobile responsiveness: slightly faster rotate/zoom on mobile
-  const orbitRotateSpeed = isMobile ? 0.8 : 0.6
-  const orbitPanSpeed = isMobile ? 0.9 : 0.8
-  const orbitZoomSpeed = isMobile ? 1.2 : 1.0
+  const orbitRotateSpeed = isMobile ? 1.0 : 0.6
+  const orbitPanSpeed = isMobile ? 1.2 : 0.8
+  const orbitZoomSpeed = isMobile ? 1.5 : 1.0
 
   // Drag-to-rotate global handler when rotateMode is active
 
@@ -161,8 +163,8 @@ export default function App() {
             intensity={1.2}
             color="#FFF5E1" // Warm sunlight (cream white)
             castShadow
-            shadow-mapSize-width={2048}
-            shadow-mapSize-height={2048}
+            shadow-mapSize-width={isMobile ? 1024 : 2048}
+            shadow-mapSize-height={isMobile ? 1024 : 2048}
             shadow-camera-far={100}
             shadow-camera-left={-25}
             shadow-camera-right={25}
@@ -192,14 +194,14 @@ export default function App() {
             minDistance={5}
             maxDistance={50}
             target={[0, 0, 0]}
-            dampingFactor={0.15}
+            dampingFactor={isMobile ? 0.2 : 0.15}
             enableDamping={true}
             rotateSpeed={orbitRotateSpeed}
             panSpeed={orbitPanSpeed}
             zoomSpeed={orbitZoomSpeed}
             touches={{
-              ONE: 2, // Single touch rotates (we still detect taps vs drags)
-              TWO: 1  // Two fingers zoom
+              ONE: THREE.TOUCH.ROTATE,
+              TWO: THREE.TOUCH.DOLLY_PAN
             }}
             mouseButtons={{
               LEFT: 0, // Disable left mouse button for camera (let tile placement work)
@@ -211,12 +213,8 @@ export default function App() {
           {/* Stats toggled with F3 */}
           {showStats && <Stats />}
 
-          {/* Minimap temporarily disabled to fix rendering issues */}
-          {/* <MinimapView containerRef={minimapRef} /> */}
         </Suspense>
       </Canvas>
-
-      {/* <MinimapContainer containerRef={minimapRef} /> */}
 
       <OnboardingOverlay />
       <ProjectInfo onSave={() => setSaveLoadOpen(true)} />
@@ -230,6 +228,10 @@ export default function App() {
       />
 
       <Toaster position="top-center" />
+
+      <AnimatePresence>
+        {showWelcome && <WelcomeScreen onStart={() => setShowWelcome(false)} />}
+      </AnimatePresence>
     </div>
   );
 }

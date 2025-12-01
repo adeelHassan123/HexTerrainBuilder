@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 const CATEGORIES = ["Trees", "Rocks", "Buildings", "Decorations"];
 
 export function AssetLibrary() {
-  const { selectedAssetType, setAssetType, setTool } = useMapStore()
+  const { selectedAssetType, setAssetType, setTool, isMobile } = useMapStore()
   const [isOpen, setIsOpen] = useState(false)
   const [activeCategory, setActiveCategory] = useState("Trees")
 
@@ -22,7 +22,8 @@ export function AssetLibrary() {
     <div
       className={cn(
         "fixed right-0 top-1/2 -translate-y-1/2 z-30 flex items-start transition-all duration-500 ease-out",
-        isOpen ? "translate-x-0" : "translate-x-[calc(100%-3rem)]"
+        isOpen ? "translate-x-0" : "translate-x-[calc(100%-3rem)]",
+        isMobile && "top-auto bottom-24 translate-y-0 h-[40vh]"
       )}
     >
       {/* Toggle Handle */}
@@ -36,7 +37,10 @@ export function AssetLibrary() {
       </Button>
 
       {/* Main Panel */}
-      <div className="w-80 h-[70vh] bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-l-2xl shadow-2xl flex flex-col overflow-hidden">
+      <div className={cn(
+        "bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-l-2xl shadow-2xl flex flex-col overflow-hidden",
+        isMobile ? "w-[85vw] h-[40vh]" : "w-80 h-[70vh]"
+      )}>
 
         {/* Header */}
         <div className="p-4 border-b border-slate-700/50 bg-slate-900/50">
@@ -65,7 +69,7 @@ export function AssetLibrary() {
         </div>
 
         {/* Grid Content */}
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1 p-4 [&>div>div]:!block [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-800/50 [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-500">
           <div className="grid grid-cols-2 gap-3 pb-4">
             {ASSET_CATALOG.filter(a => a.category === activeCategory).map((asset) => {
               const isSelected = selectedAssetType === asset.id

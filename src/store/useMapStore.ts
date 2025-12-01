@@ -16,12 +16,14 @@ export interface MapState {
   showLowerLayers: boolean; // Show/hide lower layers in stacks
   showGrid: boolean; // Show/hide grid overlay
   rotateMode: boolean; // Global rotate mode (drag to rotate selected)
+  isMobile: boolean; // UI state for mobile responsiveness
 
   // Actions
   setTool: (tool: ToolMode) => void;
   setShowLowerLayers: (show: boolean) => void;
   setShowGrid: (show: boolean) => void;
   setRotateMode: (on: boolean) => void;
+  setIsMobile: (isMobile: boolean) => void;
   setTileHeight: (h: TileHeight) => void;
   setAssetType: (type: string) => void;
   setSelectedObject: (id: string | null) => void;
@@ -44,7 +46,7 @@ export const useMapStore = create<MapState>()(
       (set, get) => ({
         tiles: new Map(),
         assets: new Map(),
-        selectedTool: 'tile',
+        selectedTool: 'select',
         selectedTileHeight: 1,
         selectedAssetType: ASSET_CATALOG[0].id,
         tableSize: { widthCm: 90, heightCm: 60 }, // Medium rectangle table
@@ -52,12 +54,14 @@ export const useMapStore = create<MapState>()(
         selectedObjectId: null,
         showLowerLayers: true,
         showGrid: true, // Grid visible by default
-            rotateMode: false,
+        rotateMode: false,
+        isMobile: false,
 
         setTool: (tool) => set({ selectedTool: tool, selectedObjectId: null }),
         setShowLowerLayers: (show) => set({ showLowerLayers: show }),
         setShowGrid: (show) => set({ showGrid: show }),
         setRotateMode: (on: boolean) => set({ rotateMode: on }),
+        setIsMobile: (isMobile) => set({ isMobile }),
         setTileHeight: (h) => set({ selectedTileHeight: h }),
         setAssetType: (type) => set({ selectedAssetType: type }),
         setSelectedObject: (id) => set({ selectedObjectId: id }),

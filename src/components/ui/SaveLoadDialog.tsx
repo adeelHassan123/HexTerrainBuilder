@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useMapStore } from "@/store/useMapStore"
 import type { MapState } from "@/store/useMapStore"
+import type { Tile, PlacedAsset, TableSize } from '@/types'
 import { Save, FolderOpen, X, Download, Upload, Trash2 } from "lucide-react"
 
 type SaveLoadDialogProps = {
@@ -18,7 +19,13 @@ type ProjectFile = {
   name: string
   date: string
   thumbnail?: string
-  data?: Partial<MapState>
+  // Saved project data may be stored as arrays (legacy) or as Maps; accept both shapes
+  data?: {
+    tiles?: Tile[][] | Record<string, Tile[]> | Map<string, Tile[]>
+    assets?: PlacedAsset[] | Record<string, PlacedAsset> | Map<string, PlacedAsset>
+    tableSize?: TableSize
+    projectName?: string
+  }
 }
 
 export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
@@ -43,8 +50,9 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
       name: projectName,
       date: new Date().toISOString(),
       data: {
-        tiles: Array.from(tiles.values()),
-        assets: Array.from(assets.values()),
+        // Save tiles/assets as keyed objects so they can be restored into Maps
+        tiles: Object.fromEntries(Array.from(tiles.entries())),
+        assets: Object.fromEntries(Array.from(assets.entries())),
         tableSize,
         projectName: projectName
       }
@@ -67,7 +75,42 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
   
   const handleLoad = (project: ProjectFile) => {
     if (project.data) {
-      loadProject(project.data)
+      // Normalize saved data (accept Map, Record, or legacy arrays) into Partial<MapState>
+      const d = project.data
+      const payload: Partial<MapState> = {}
+
+      if (d.tiles) {
+        if (d.tiles instanceof Map) {
+          payload.tiles = d.tiles as Map<string, Tile[]>
+        } else if (Array.isArray(d.tiles)) {
+          const m = new Map<string, Tile[]>()
+          d.tiles.forEach((arr, i) => m.set(`legacy_${i}`, arr))
+          payload.tiles = m
+        } else {
+          const m = new Map<string, Tile[]>()
+          Object.entries(d.tiles).forEach(([k, v]) => m.set(k, v as Tile[]))
+          payload.tiles = m
+        }
+      }
+
+      if (d.assets) {
+        if (d.assets instanceof Map) {
+          payload.assets = d.assets as Map<string, PlacedAsset>
+        } else if (Array.isArray(d.assets)) {
+          const m = new Map<string, PlacedAsset>()
+          d.assets.forEach((a) => m.set(a.id, a))
+          payload.assets = m
+        } else {
+          const m = new Map<string, PlacedAsset>()
+          Object.entries(d.assets).forEach(([k, v]) => m.set(k, v as PlacedAsset))
+          payload.assets = m
+        }
+      }
+
+      if (d.tableSize) payload.tableSize = d.tableSize
+      if (d.projectName) payload.projectName = d.projectName
+
+      loadProject(payload)
     }
     onOpenChange(false)
   }
@@ -87,7 +130,44 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
     reader.onload = (event: ProgressEvent<FileReader>) => {
       try {
         const projectData = JSON.parse(event.target?.result as string)
-        if (projectData?.data) loadProject(projectData.data as Partial<MapState>)
+        if (projectData?.data) {
+          // reuse normalization logic from handleLoad
+          const d = projectData.data
+          const payload: Partial<MapState> = {}
+
+          if (d.tiles) {
+            if (d.tiles instanceof Map) {
+              payload.tiles = d.tiles as Map<string, Tile[]>
+            } else if (Array.isArray(d.tiles)) {
+              const m = new Map<string, Tile[]>()
+              d.tiles.forEach((arr: Tile[], i: number) => m.set(`legacy_${i}`, arr))
+              payload.tiles = m
+            } else {
+              const m = new Map<string, Tile[]>()
+              Object.entries(d.tiles).forEach(([k, v]) => m.set(k, v as Tile[]))
+              payload.tiles = m
+            }
+          }
+
+          if (d.assets) {
+            if (d.assets instanceof Map) {
+              payload.assets = d.assets as Map<string, PlacedAsset>
+            } else if (Array.isArray(d.assets)) {
+              const m = new Map<string, PlacedAsset>()
+              d.assets.forEach((a: PlacedAsset) => m.set(a.id, a))
+              payload.assets = m
+            } else {
+              const m = new Map<string, PlacedAsset>()
+              Object.entries(d.assets).forEach(([k, v]) => m.set(k, v as PlacedAsset))
+              payload.assets = m
+            }
+          }
+
+          if (d.tableSize) payload.tableSize = d.tableSize
+          if (d.projectName) payload.projectName = d.projectName
+
+          loadProject(payload)
+        }
         onOpenChange(false)
       } catch (error) {
         console.error('Error loading project file', error)
@@ -99,8 +179,8 @@ export function SaveLoadDialog({ open, onOpenChange }: SaveLoadDialogProps) {
   
   const handleExport = () => {
     const projectData = {
-      tiles: Array.from(tiles.values()),
-      assets: Array.from(assets.values()),
+      tiles: Object.fromEntries(Array.from(tiles.entries())),
+      assets: Object.fromEntries(Array.from(assets.entries())),
       tableSize,
       projectName: currentProjectName
     }

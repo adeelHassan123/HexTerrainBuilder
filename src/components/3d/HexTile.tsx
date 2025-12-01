@@ -17,12 +17,12 @@ export function HexTile({ tile, totalHeightBelow, isSelected, onSelect }: HexTil
 
   // Get material based on stack level (intelligent terrain progression)
   const material = useMemo(() => {
-    const baseMaterial = getMaterialForTile(tile.stackLevel);
+    const baseMaterial = getMaterialForTile(tile.stackLevel, tile.height);
     // Add subtle variation to avoid repetition
     const seed = tile.q * 1000 + tile.r * 100 + tile.stackLevel;
     addColorVariation(baseMaterial, seed);
     return baseMaterial;
-  }, [tile.stackLevel, tile.q, tile.r]);
+  }, [tile.stackLevel, tile.height, tile.q, tile.r]);
 
   const realHeight = Math.max(0.1, tile.height * 0.5); // HEIGHT_UNIT = 0.5 for Three.js scaling (1cm = 0.5 units)
   const yPos = totalHeightBelow * 0.5 + realHeight / 2;

@@ -193,13 +193,6 @@ export const createCustomGrassMaterial = (
  * @param tileHeight Height of the individual tile (1, 2, or 5)
  * @returns Appropriate material for the tile
  */
-<<<<<<< HEAD
-export const getMaterialForTile = (stackLevel: number): THREE.MeshStandardMaterial => {
-    // Level 0: Always grass (ground level)
-    if (stackLevel === 0) {
-        return createGrassMaterial();
-    }
-=======
 export const getMaterialForTile = (
   stackLevel: number,
   _tileHeight: number
@@ -208,7 +201,6 @@ export const getMaterialForTile = (
   if (stackLevel === 0) {
     return createGrassMaterial();
   }
->>>>>>> acb808c (Ok Adeel, ab push kardo.)
 
   // Level 1: Transitional dirt/grass mix
   if (stackLevel === 1) {

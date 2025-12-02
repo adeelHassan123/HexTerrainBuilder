@@ -18,6 +18,7 @@ export interface PlacedAsset {
   r: number;
   type: string; // Asset type ID (e.g., 'tree_pine', 'rock_large')
   rotationY: number; // Y-axis rotation in radians
+  scale: number; // Uniform scale multiplier (1.0 = default)
   stackLevel: number; // Position in stack (sits on top of tiles at this hex)
 }
 

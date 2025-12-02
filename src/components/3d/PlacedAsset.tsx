@@ -26,6 +26,7 @@ function Placeholder({ asset, totalHeightAtHex, isSelected, onSelect }: PlacedAs
     <group
       position={[x, yPos, z]}
       rotation={[0, asset.rotationY, 0]}
+      scale={asset.scale}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(asset.id);
@@ -59,7 +60,7 @@ function ModelContent({
   onSelect: (assetId: string) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const { rotateAsset, removeAsset } = useMapStore();
+  const { rotateAsset, adjustAssetScale, removeAsset } = useMapStore();
 
   // useLoader must be called unconditionally - Suspense will handle loading state
   const gltf = useLoader(GLTFLoader, modelPath);
@@ -79,14 +80,25 @@ function ModelContent({
         rotateAsset(asset.id, Math.PI / 6);
       } else if (e.key === '-') {
         rotateAsset(asset.id, -Math.PI / 6);
+      } else if (e.key === '[') {
+        adjustAssetScale(asset.id, -0.1);
+      } else if (e.key === ']') {
+        adjustAssetScale(asset.id, 0.1);
       }
     };
 
     const handleWheel = (e: WheelEvent) => {
       if (isSelected && e.deltaY !== 0) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? -Math.PI / 12 : Math.PI / 12;
-        rotateAsset(asset.id, delta);
+        if (e.ctrlKey || e.metaKey) {
+          // Ctrl+Wheel = Scale
+          const delta = e.deltaY > 0 ? -0.05 : 0.05;
+          adjustAssetScale(asset.id, delta);
+        } else {
+          // Regular Wheel = Rotate
+          const delta = e.deltaY > 0 ? -Math.PI / 12 : Math.PI / 12;
+          rotateAsset(asset.id, delta);
+        }
       }
     };
 
@@ -97,7 +109,7 @@ function ModelContent({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('wheel', handleWheel);
     };
-  }, [isSelected, asset.id, rotateAsset, removeAsset]);
+  }, [isSelected, asset.id, rotateAsset, adjustAssetScale, removeAsset]);
 
   // Make sure the loaded model is shown (not placeholder) and is properly scaled/positioned.
   // We clone the gltf.scene, compute its bounding box to align the model base to y=0,
@@ -139,6 +151,7 @@ function ModelContent({
       ref={groupRef}
       position={[x, yPos + verticalOffset, z]}
       rotation={[0, asset.rotationY, 0]}
+      scale={asset.scale}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(asset.id);

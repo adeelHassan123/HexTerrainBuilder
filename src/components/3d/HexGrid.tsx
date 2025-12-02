@@ -23,6 +23,7 @@ export function HexGrid() {
     selectedObjectId,
     setSelectedObject,
     tableSize,
+    assets,
   } = useMapStore();
 
   const [hoveredHex, setHoveredHex] = useState<{ q: number; r: number } | null>(null);
@@ -192,14 +193,27 @@ export function HexGrid() {
         } else if (selectedTool === 'asset') {
           addAsset(touchState.startHex.q, touchState.startHex.r);
         } else {
-          // Select mode
-          const key = getKey(touchState.startHex.q, touchState.startHex.r);
-          const tilesAt = tiles.get(key) || [];
-          if (tilesAt.length > 0) {
-            const topTile = tilesAt[tilesAt.length - 1];
-            setSelectedObject(topTile.id);
+          // Select mode - prioritize assets over tiles
+          if (!touchState.startHex) return;
+          const assetsAtHex = Array.from(assets.values()).filter(
+            a => a.q === touchState.startHex!.q && a.r === touchState.startHex!.r
+          );
+          if (assetsAtHex.length > 0) {
+            // Select the topmost asset (highest stackLevel)
+            const topAsset = assetsAtHex.reduce((a, b) => 
+              a.stackLevel > b.stackLevel ? a : b
+            );
+            setSelectedObject(topAsset.id);
           } else {
-            setSelectedObject(null);
+            // No asset, check for tiles
+            const key = getKey(touchState.startHex.q, touchState.startHex.r);
+            const tilesAt = tiles.get(key) || [];
+            if (tilesAt.length > 0) {
+              const topTile = tilesAt[tilesAt.length - 1];
+              setSelectedObject(topTile.id);
+            } else {
+              setSelectedObject(null);
+            }
           }
         }
       }

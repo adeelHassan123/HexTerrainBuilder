@@ -33,6 +33,8 @@ export interface MapState {
   addAsset: (q: number, r: number) => void;
   removeAsset: (id: string) => void;
   rotateAsset: (id: string, delta: number) => void;
+  scaleAsset: (id: string, scale: number) => void;
+  adjustAssetScale: (id: string, delta: number) => void;
   deleteSelected: () => void;
   clearMap: () => void;
   loadProject: (data: Partial<MapState>) => void;
@@ -134,6 +136,7 @@ export const useMapStore = create<MapState>()(
             r,
             type: state.selectedAssetType,
             rotationY: 0,
+            scale: 1.0,
             stackLevel,
           });
           return { assets: newAssets };
@@ -150,6 +153,26 @@ export const useMapStore = create<MapState>()(
           if (!asset) return {};
           const newAssets = new Map(state.assets);
           newAssets.set(id, { ...asset, rotationY: asset.rotationY + delta });
+          return { assets: newAssets };
+        }),
+
+        scaleAsset: (id, scale) => set(state => {
+          const asset = state.assets.get(id);
+          if (!asset) return {};
+          const newAssets = new Map(state.assets);
+          // Clamp scale between 0.1 and 10.0 (1000%)
+          const clampedScale = Math.max(0.1, Math.min(10.0, scale));
+          newAssets.set(id, { ...asset, scale: clampedScale });
+          return { assets: newAssets };
+        }),
+
+        adjustAssetScale: (id, delta) => set(state => {
+          const asset = state.assets.get(id);
+          if (!asset) return {};
+          const newAssets = new Map(state.assets);
+          // Clamp scale between 0.1 and 10.0 (1000%)
+          const clampedScale = Math.max(0.1, Math.min(10.0, asset.scale + delta));
+          newAssets.set(id, { ...asset, scale: clampedScale });
           return { assets: newAssets };
         }),
 

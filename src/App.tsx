@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stats } from '@react-three/drei';
 import { Scene } from '@/components/3d/Scene';
 import { TableBoundary } from '@/components/3d/TableBoundary';
+import { OrbitVisualizer } from '@/components/3d/OrbitVisualizer';
 import { ProjectInfo } from '@/components/ui/ProjectInfo';
 import { OnboardingOverlay } from '@/components/ui/OnboardingOverlay';
 import { Toolbar } from '@/components/ui/Toolbar';
@@ -27,6 +28,7 @@ export default function App() {
   const [controlsEnabled, setControlsEnabled] = useState(true);
   const [showStats, setShowStats] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const orbitControlsRef = useRef<any>(null);
   const { exportMap } = useExport();
   const { rotateMode, setRotateMode, selectedObjectId, rotateAsset, isMobile, setIsMobile } = useMapStore();
 
@@ -111,6 +113,59 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Arrow key camera panning
+  useEffect(() => {
+    const keys: Record<string, boolean> = {};
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        keys[e.key] = true;
+        e.preventDefault();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        keys[e.key] = false;
+      }
+    };
+
+    const panSpeed = isMobile ? 0.3 : 0.2;
+
+    const handleFrame = () => {
+      if (!orbitControlsRef.current) return;
+
+      const controls = orbitControlsRef.current;
+      if (!controls.target) return;
+
+      // Pan the camera by moving the orbit target
+      if (keys['ArrowUp']) {
+        controls.target.z -= panSpeed;
+      }
+      if (keys['ArrowDown']) {
+        controls.target.z += panSpeed;
+      }
+      if (keys['ArrowLeft']) {
+        controls.target.x -= panSpeed;
+      }
+      if (keys['ArrowRight']) {
+        controls.target.x += panSpeed;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    // Use a frame loop to smoothly pan
+    const intervalId = setInterval(handleFrame, 16); // ~60 FPS
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      clearInterval(intervalId);
+    };
+  }, [isMobile]);
+
   const handleExport = (format: string) => {
     if (format === 'png' && canvasRef.current) {
       const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true });
@@ -180,13 +235,14 @@ export default function App() {
             color="#B0C4DE" // Cool fill (light steel blue)
           />
 
-          {/* Subtle volumetric distance fog */}
-          <fog attach="fog" args={['#87CEEB', 30, 80]} />
-
           <Scene />
           <TableBoundary />
 
+          {/* Orbit center point visualizer */}
+          <OrbitVisualizer position={[0, 0, 0]} size={1.0} color="#fbbf24" />
+
           <OrbitControls
+            ref={orbitControlsRef}
             enabled={controlsEnabled}
             enablePan={true}
             enableZoom={true}

@@ -65,8 +65,8 @@ export function HexGrid() {
 
   // Smooth preview movement
   useFrame((_, delta) => {
-    // Lerp preview position towards target
-    previewPosRef.current.lerp(targetPosRef.current, Math.min(1, 10 * delta));
+    // Lerp preview position towards target - reduced stickiness for snappier response
+    previewPosRef.current.lerp(targetPosRef.current, Math.min(1, 25 * delta));
     // Apply preview position/scale imperatively to avoid reading refs during render
     if (previewGroupRef.current) {
       previewGroupRef.current.position.copy(previewPosRef.current);
@@ -87,9 +87,11 @@ export function HexGrid() {
         if (!hoveredHex || hoveredHex.q !== axial.q || hoveredHex.r !== axial.r) {
           setHoveredHex({ q: axial.q, r: axial.r });
           setIsValidPlacement(true);
-          // Target position: center + more dramatic lift for preview (0.15 instead of 0.1)
-          targetPosRef.current.set(center.x, getTotalHeightAt(center.q, center.r) * 0.5 + 0.15, center.z);
-          setHoverScale(1.08); // More dramatic scale-up (was 1.04)
+          // Preview group positioned at center with height offset (no additional local offset needed)
+          const totalHeight = getTotalHeightAt(axial.q, axial.r);
+          const realHeight = Math.max(0.1, selectedTileHeight * 0.5);
+          targetPosRef.current.set(center.x, totalHeight * 0.5 + realHeight / 2, center.z);
+          setHoverScale(1.08);
         }
       } else {
         setHoveredHex(null);
@@ -181,22 +183,22 @@ export function HexGrid() {
 
       const duration = Date.now() - touchState.startTime;
       const wasTap = !touchState.hasMoved && duration < TAP_MAX_DURATION;
-      const inBounds = checkBounds(touchState.startHex.q, touchState.startHex.r);
+      
+      // Use hoveredHex (current mouse position) if available, otherwise fall back to startHex
+      const hexToPlace = hoveredHex || touchState.startHex;
+      const inBounds = checkBounds(hexToPlace.q, hexToPlace.r);
 
       // Only place tile if it was a quick tap (no drag) and in bounds
       if (wasTap && inBounds && isValidPlacement) {
-        // Double check that we are still over the same hex (or close enough)
-        // For mouse, we can check hoveredHex. For touch, we rely on startHex.
-
         if (selectedTool === 'tile') {
-          addTile(touchState.startHex.q, touchState.startHex.r);
+          addTile(hexToPlace.q, hexToPlace.r);
         } else if (selectedTool === 'asset') {
-          addAsset(touchState.startHex.q, touchState.startHex.r);
+          addAsset(hexToPlace.q, hexToPlace.r);
         } else {
           // Select mode - prioritize assets over tiles
-          if (!touchState.startHex) return;
+          if (!hexToPlace) return;
           const assetsAtHex = Array.from(assets.values()).filter(
-            a => a.q === touchState.startHex!.q && a.r === touchState.startHex!.r
+            a => a.q === hexToPlace.q && a.r === hexToPlace.r
           );
           if (assetsAtHex.length > 0) {
             // Select the topmost asset (highest stackLevel)
@@ -206,7 +208,7 @@ export function HexGrid() {
             setSelectedObject(topAsset.id);
           } else {
             // No asset, check for tiles
-            const key = getKey(touchState.startHex.q, touchState.startHex.r);
+            const key = getKey(hexToPlace.q, hexToPlace.r);
             const tilesAt = tiles.get(key) || [];
             if (tilesAt.length > 0) {
               const topTile = tilesAt[tilesAt.length - 1];
@@ -290,7 +292,7 @@ export function HexGrid() {
 
           {selectedTool === 'tile' && isValidPlacement && (
             <>
-              <mesh position={[0, selectedTileHeight * 0.5 / 2, 0]}>
+              <mesh position={[0, 0, 0]}>
                 <cylinderGeometry args={[HEX_SIZE, HEX_SIZE, selectedTileHeight * 0.5, 6]} />
                 <meshStandardMaterial
                   color={"#10b981"}

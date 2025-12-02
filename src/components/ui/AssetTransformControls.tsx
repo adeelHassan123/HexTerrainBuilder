@@ -127,6 +127,28 @@ export function AssetTransformControls() {
                 {scalePercent}%
               </span>
             </div>
+
+            {/* Direct Scale Input */}
+            <input
+              type="number"
+              min="10"
+              max="1000"
+              step="10"
+              value={scalePercent}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val)) {
+                  // Clamp to 10–1000 range
+                  const clamped = Math.max(10, Math.min(1000, val));
+                  const scaleFactor = clamped / 100;
+                  adjustAssetScale(selectedObjectId!, scaleFactor - selectedAsset!.scale);
+                  setScale(scaleFactor);
+                }
+              }}
+              className="w-full h-8 bg-slate-800/50 border border-slate-600 rounded px-2 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="10–1000"
+            />
+
             <div className="flex gap-2">
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
@@ -153,7 +175,7 @@ export function AssetTransformControls() {
                       variant="outline"
                       size="sm"
                       onClick={handleScaleUp}
-                      disabled={scale >= 3.0}
+                      disabled={scale >= 10.0}
                       className="flex-1 h-8 bg-slate-800/50 border-slate-600 hover:bg-slate-700 text-slate-300 disabled:opacity-50"
                     >
                       <ZoomIn className="w-4 h-4 mr-1" />
@@ -161,32 +183,31 @@ export function AssetTransformControls() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="bg-slate-900 border-slate-700 text-slate-200 text-xs">
-                    <p>Scale Up (10%) | Hotkey: [ ]</p>
+                    <p>Scale Up (10%) | Hotkey: [ ] — Max 1000%</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
 
-            {/* Reset Scale Button */}
-            {scale !== 1.0 && selectedAsset && (
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleResetScale}
-                      className="w-full h-7 text-xs bg-slate-800/30 border-slate-600 hover:bg-slate-700 text-slate-300"
-                    >
-                      Reset to 100%
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="bg-slate-900 border-slate-700 text-slate-200 text-xs">
-                    <p>Reset scale to default (1.0)</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
+            {/* Reset Scale Button - Always Visible */}
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetScale}
+                    disabled={scale === 1.0}
+                    className="w-full h-7 text-xs bg-slate-800/30 border-slate-600 hover:bg-slate-700 text-slate-300 disabled:opacity-50"
+                  >
+                    Reset to 100%
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="bg-slate-900 border-slate-700 text-slate-200 text-xs">
+                  <p>Reset scale to default (1.0)</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
           {/* Help Text */}

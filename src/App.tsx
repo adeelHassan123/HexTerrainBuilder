@@ -4,6 +4,7 @@ import { OrbitControls, Stats } from '@react-three/drei';
 import { Scene } from '@/components/3d/Scene';
 import { TableBoundary } from '@/components/3d/TableBoundary';
 import { OrbitVisualizer } from '@/components/3d/OrbitVisualizer';
+import { AssetTransformControls } from '@/components/ui/AssetTransformControls';
 import { ProjectInfo } from '@/components/ui/ProjectInfo';
 import { OnboardingOverlay } from '@/components/ui/OnboardingOverlay';
 import { Toolbar } from '@/components/ui/Toolbar';
@@ -31,6 +32,25 @@ export default function App() {
   const orbitControlsRef = useRef<any>(null);
   const { exportMap } = useExport();
   const { rotateMode, setRotateMode, selectedObjectId, rotateAsset, isMobile, setIsMobile } = useMapStore();
+
+  // On first mount, ask user whether to load persisted map or clear it.
+  useEffect(() => {
+    try {
+      const key = 'hexmap-storage';
+      const persisted = localStorage.getItem(key);
+      if (persisted && persisted.length > 10) {
+        const load = window.confirm('A previously saved map was found. Click OK to load it, or Cancel to clear saved map and start fresh.');
+        if (!load) {
+          localStorage.removeItem(key);
+          // Clear in-memory store as well
+          const s = useMapStore.getState();
+          s.clearMap();
+        }
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, []);
 
   // When rotateMode is active, allow click+drag on the canvas to rotate selected asset
   useEffect(() => {
@@ -238,8 +258,33 @@ export default function App() {
           <Scene />
           <TableBoundary />
 
-          {/* Orbit center point visualizer */}
-          <OrbitVisualizer position={[0, 0, 0]} size={1.0} color="#fbbf24" />
+          <OrbitControls
+            ref={orbitControlsRef}
+            enabled={controlsEnabled}
+            enablePan={true}
+            enableZoom={true}
+            enableRotate={true}
+            minDistance={5}
+            maxDistance={50}
+            target={[0, 0, 0]}
+            dampingFactor={isMobile ? 0.2 : 0.15}
+            enableDamping={true}
+            rotateSpeed={orbitRotateSpeed}
+            panSpeed={orbitPanSpeed}
+            zoomSpeed={orbitZoomSpeed}
+            touches={{
+              ONE: THREE.TOUCH.ROTATE,
+              TWO: THREE.TOUCH.DOLLY_PAN
+            }}
+            mouseButtons={{
+              LEFT: 0, // Disable left mouse button for camera (let tile placement work)
+              MIDDLE: 1, // Pan with middle button
+              RIGHT: 2  // Rotate with right button
+            }}
+          />
+
+          {/* Orbit center point visualizer - follows OrbitControls target */}
+          <OrbitVisualizer controlsRef={orbitControlsRef} size={1.0} color="#fbbf24" />
 
           <OrbitControls
             ref={orbitControlsRef}
@@ -277,6 +322,7 @@ export default function App() {
       <MapStatsPanel />
       <Toolbar onSaveLoadOpen={() => setSaveLoadOpen(true)} onExport={handleExport} />
       <AssetLibrary />
+      <AssetTransformControls />
 
       <SaveLoadDialog
         open={saveLoadOpen}

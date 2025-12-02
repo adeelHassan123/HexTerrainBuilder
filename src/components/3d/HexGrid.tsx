@@ -1,15 +1,15 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef } from 'react';
 import type { Tile } from '../../types';
 
 type WindowWithHexGridControls = Window & {
   __hexGridControlsEnabled?: (enabled: boolean) => void;
 };
-import { ThreeEvent } from '@react-three/fiber';
+import { ThreeEvent, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useMapStore } from '../../store/useMapStore';
 import { HexTile } from './HexTile';
 import { GridOverlay } from './GridOverlay';
-import { worldToAxial, getKey, isHexInBounds, HEX_SIZE, buildHexCenterMap } from '../../lib/hexMath';
+import { worldToAxial, axialToWorld, getKey, isHexInBounds, HEX_SIZE } from '../../lib/hexMath';
 import { useFrame } from '@react-three/fiber';
 
 export function HexGrid() {
@@ -25,6 +25,13 @@ export function HexGrid() {
     tableSize,
     assets,
   } = useMapStore();
+
+  const { camera, scene } = useThree();
+  const raycasterRef = useRef(new THREE.Raycaster());
+  const groundPlaneRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
+  const pointerRef = useRef(new THREE.Vector2());
+  const lastHoverHex = useRef<{ q: number; r: number } | null>(null);
+  const lastHoverTime = useRef(0);
 
   const [hoveredHex, setHoveredHex] = useState<{ q: number; r: number } | null>(null);
   const [isValidPlacement, setIsValidPlacement] = useState(true);
@@ -58,41 +65,101 @@ export function HexGrid() {
     return isHexInBounds(q, r, width, height);
   };
 
-  // Precompute center map for fast snapping (O(1) lookups)
-  const width = tableSize?.widthCm && !isNaN(tableSize.widthCm) ? tableSize.widthCm : 90;
-  const height = tableSize?.heightCm && !isNaN(tableSize.heightCm) ? tableSize.heightCm : 60;
-  const centerMap = useMemo(() => buildHexCenterMap(width, height), [width, height]);
+  /**
+   * Get world position using raycasting from mouse coordinates.
+   * This properly accounts for the camera projection and 3D view.
+   * The ray is cast from the camera through the mouse position and intersected with the ground plane (y=0).
+   */
+  const getRaycastWorldPosition = (event: PointerEvent): THREE.Vector3 | null => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return null;
 
-  // Smooth preview movement
-  useFrame((_, delta) => {
-    // Lerp preview position towards target - reduced stickiness for snappier response
-    previewPosRef.current.lerp(targetPosRef.current, Math.min(1, 25 * delta));
-    // Apply preview position/scale imperatively to avoid reading refs during render
-    if (previewGroupRef.current) {
-      previewGroupRef.current.position.copy(previewPosRef.current);
-      previewGroupRef.current.scale.set(hoverScale, hoverScale, hoverScale);
+    const rect = canvas.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    pointerRef.current.set(x, y);
+    raycasterRef.current.setFromCamera(pointerRef.current, camera);
+    
+    // First, try to intersect with existing tiles
+    const intersects = raycasterRef.current.intersectObjects(
+      scene.getObjectByName('tiles')?.children || []
+    );
+    
+    if (intersects.length > 0) {
+      return intersects[0].point;
     }
+    
+    // If no tile intersection, use ground plane
+    const planeIntersection = new THREE.Vector3();
+    raycasterRef.current.ray.intersectPlane(groundPlaneRef.current, planeIntersection);
+    return planeIntersection;
+  };
+
+  // Smooth preview movement with improved performance
+  useFrame((_, delta) => {
+    if (!previewGroupRef.current) return;
+    
+    // Calculate dynamic lerp factor based on distance
+    const distance = previewPosRef.current.distanceTo(targetPosRef.current);
+    const lerpFactor = Math.min(1, (distance > 0.5 ? 20 : 10) * delta);
+    
+    // Smooth position with easing
+    previewPosRef.current.lerp(targetPosRef.current, lerpFactor);
+    
+    // Update scale with easing
+    const targetScale = hoverScale;
+    const currentScale = previewGroupRef.current.scale.x;
+    const scale = THREE.MathUtils.damp(currentScale, targetScale, 10, delta);
+    
+    // Apply transforms
+    previewGroupRef.current.position.copy(previewPosRef.current);
+    previewGroupRef.current.scale.setScalar(scale);
   });
 
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
     try {
-      // Fast snapping: compute axial then check precomputed center map
-      const axial = worldToAxial(e.point.x, e.point.z);
-      const key = getKey(axial.q, axial.r);
-      const center = centerMap.get(key);
-      const inBounds = !!center;
+      const now = Date.now();
+      if (now - lastHoverTime.current < 16) { // ~60fps throttle
+        return;
+      }
+      lastHoverTime.current = now;
+
+      const worldPos = getRaycastWorldPosition(e.nativeEvent);
+      if (!worldPos) {
+        setHoveredHex(null);
+        setIsValidPlacement(false);
+        setHoverScale(1);
+        return;
+      }
+
+      // Convert world position to axial coordinates with proper rounding
+      const axial = worldToAxial(worldPos.x, worldPos.z);
+      const inBounds = checkBounds(axial.q, axial.r);
+      
+      // Skip if hex hasn't changed and it's been less than 100ms
+      if (lastHoverHex.current?.q === axial.q && lastHoverHex.current?.r === axial.r) {
+        return;
+      }
+      lastHoverHex.current = axial;
 
       if (inBounds) {
-        // Update hovered hex and target preview position smoothly
-        if (!hoveredHex || hoveredHex.q !== axial.q || hoveredHex.r !== axial.r) {
-          setHoveredHex({ q: axial.q, r: axial.r });
-          setIsValidPlacement(true);
-          // Preview group positioned at center with height offset (no additional local offset needed)
-          const totalHeight = getTotalHeightAt(axial.q, axial.r);
-          const realHeight = Math.max(0.1, selectedTileHeight * 0.5);
-          targetPosRef.current.set(center.x, totalHeight * 0.5 + realHeight / 2, center.z);
-          setHoverScale(1.08);
-        }
+        setHoveredHex(axial);
+        setIsValidPlacement(true);
+        
+        // Calculate exact hex center position
+        const [hexX, , hexZ] = axialToWorld(axial.q, axial.r, 0);
+        const totalHeight = getTotalHeightAt(axial.q, axial.r);
+        const realHeight = Math.max(0.1, selectedTileHeight * 0.5);
+        
+        // Smoothly update target position
+        targetPosRef.current.set(
+          hexX,
+          totalHeight * 0.5 + realHeight / 2,
+          hexZ
+        );
+        
+        setHoverScale(1.08);
       } else {
         setHoveredHex(null);
         setIsValidPlacement(false);
@@ -141,10 +208,9 @@ export function HexGrid() {
   // Handle pointer down - track start
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
     try {
-      // Temporarily disable OrbitControls to prevent rotation on tap (if needed)
-      // For mouse, we usually want OrbitControls to work for drag, so we don't disable it here unless we are sure.
-      // But if we disable it, we can't rotate. 
-      // Strategy: Track movement. If moved, it's a drag (rotate/pan). If not moved, it's a click.
+      // Use raycasting to get accurate hex position
+      const worldPos = getRaycastWorldPosition(e.nativeEvent);
+      const startHex = worldPos ? worldToAxial(worldPos.x, worldPos.z) : null;
 
       touchStateRef.current = {
         startTime: Date.now(),
@@ -153,14 +219,9 @@ export function HexGrid() {
           y: e.nativeEvent.clientY,
         },
         hasMoved: false,
-        startHex: worldToAxial(e.point.x, e.point.z),
+        startHex: startHex,
         pointerType: e.pointerType as 'mouse' | 'touch' | 'pen',
       };
-
-      // For touch, we might want to disable controls initially to see if it's a tap
-      // BUT for rotation to work, we must NOT disable controls.
-      // OrbitControls will handle the drag. We just need to detect if it WAS a drag to avoid placement.
-      // So we do nothing here regarding controls.
     } catch (error) {
       console.error('Error in handlePointerDown:', error);
     }
@@ -335,7 +396,9 @@ export function HexGrid() {
         </group>
       )}
 
-      {/* Ground plane for raycasting */}
+      {
+        
+      }
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, -0.01, 0]}

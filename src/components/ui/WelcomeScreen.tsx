@@ -20,7 +20,7 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
             >
                 <div className="space-y-4">
                     <h1 className="text-6xl md:text-8xl font-bold tracking-tighter bg-gradient-to-b from-white to-white/50 bg-clip-text text-transparent">
-                        HexTerrain
+                        TerrainBuilder
                     </h1>
                     <p className="text-xl md:text-2xl text-slate-400 font-light tracking-wide">
                         Build Your World, One Hex at a Time

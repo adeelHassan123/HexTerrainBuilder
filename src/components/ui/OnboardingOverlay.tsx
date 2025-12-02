@@ -43,12 +43,6 @@ export function OnboardingOverlay() {
                         exit={{ opacity: 0, y: -20 }}
                         className="text-center"
                     >
-                        <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-xl tracking-tight">
-                            Welcome to HexMap 3D
-                        </h1>
-                        <p className="text-lg text-slate-300 drop-shadow-md">
-                            Click <span className="text-blue-400 font-bold">+ Tile</span> below to start building
-                        </p>
                     </motion.div>
                 )}
 

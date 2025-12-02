@@ -1,5 +1,3 @@
-import * as THREE from 'three';
-
 interface OrbitVisualizerProps {
   position?: [number, number, number];
   size?: number;

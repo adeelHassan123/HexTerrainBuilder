@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { useRef, useMemo, useEffect } from 'react';
 import { axialToWorld, HEX_SIZE } from '../../lib/hexMath';
-import { getMaterialForTile, addColorVariation } from './Materials';
+import { getCachedMaterial } from './Materials';
 import type { Tile } from '../../types';
 
 interface HexTileProps {
@@ -18,14 +18,10 @@ export function HexTile({ tile, totalHeightBelow, isSelected, onSelect }: HexTil
   const edgesRef = useRef<THREE.LineSegments>(null);
   const { selectedTool } = useMapStore();
 
-  // Get material based on stack level (intelligent terrain progression)
+  // Get material based on stack level (use cached materials to reduce GC pressure)
   const material = useMemo(() => {
-    const baseMaterial = getMaterialForTile(tile.stackLevel, tile.height);
-    // Add subtle variation to avoid repetition
-    const seed = tile.q * 1000 + tile.r * 100 + tile.stackLevel;
-    addColorVariation(baseMaterial, seed);
-    return baseMaterial;
-  }, [tile.stackLevel, tile.height, tile.q, tile.r]);
+    return getCachedMaterial(tile.stackLevel, tile.height);
+  }, [tile.stackLevel, tile.height]);
 
   const realHeight = Math.max(0.1, tile.height * 0.5); // HEIGHT_UNIT = 0.5 for Three.js scaling (1cm = 0.5 units)
   const yPos = totalHeightBelow * 0.5 + realHeight / 2;

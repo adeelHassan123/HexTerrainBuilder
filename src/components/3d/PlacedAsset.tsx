@@ -1,4 +1,4 @@
-import { useRef, useEffect, Suspense } from 'react';
+import { useRef, useEffect, Suspense, useMemo } from 'react';
 import { useLoader } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
@@ -7,6 +7,48 @@ import { useMapStore } from '../../store/useMapStore';
 import { PlacedAsset as PlacedAssetType, ASSET_CATALOG } from '../../types';
 import { ErrorBoundary } from './ErrorBoundary';
 import { createProceduralAsset } from './ProceduralAssets';
+
+// Clone cache to avoid re-cloning the same model multiple times
+const modelCloneCache = new Map<string, { clone: THREE.Object3D; metadata: { scale: number; verticalOffset: number } }>();
+
+const getOrCreateClone = (gltf: any, modelPath: string, assetDef: any) => {
+  const cacheKey = modelPath;
+  
+  if (!modelCloneCache.has(cacheKey)) {
+    const modelScale = assetDef?.scale ?? 1.0;
+    const sceneClone = gltf.scene.clone(true) as THREE.Object3D;
+    
+    // Configure all meshes
+    sceneClone.traverse((node: THREE.Object3D) => {
+      if ((node as THREE.Mesh).isMesh) {
+        const mesh = node as THREE.Mesh;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+      }
+    });
+    
+    // Compute vertical offset once
+    const tmpBox = new THREE.Box3().setFromObject(sceneClone);
+    const minY = tmpBox.min.y || 0;
+    sceneClone.scale.setScalar(modelScale);
+    const verticalOffset = -minY * modelScale;
+    
+    modelCloneCache.set(cacheKey, {
+      clone: sceneClone,
+      metadata: { scale: modelScale, verticalOffset }
+    });
+  }
+  
+  return modelCloneCache.get(cacheKey)!;
+};
+
+// Geometry pool for selection rings - reuse instead of recreating
+const geometryPool = {
+  ring: new THREE.RingGeometry(0.6, 0.7, 32),
+  dispose: () => {
+    geometryPool.ring.dispose();
+  }
+};
 
 interface PlacedAssetProps {
   asset: PlacedAssetType;
@@ -20,7 +62,7 @@ function Placeholder({ asset, totalHeightAtHex, isSelected, onSelect }: PlacedAs
   const yPos = totalHeightAtHex * 0.5 + 0.5;
   const [x, , z] = axialToWorld(asset.q, asset.r, 0);
 
-  const proceduralGroup = createProceduralAsset(asset.type);
+  const proceduralGroup = useMemo(() => createProceduralAsset(asset.type), [asset.type]);
 
   return (
     <group
@@ -34,10 +76,9 @@ function Placeholder({ asset, totalHeightAtHex, isSelected, onSelect }: PlacedAs
     >
       <primitive object={proceduralGroup} />
 
-      {/* Selection Ring */}
+      {/* Selection Ring - reuse geometry pool */}
       {isSelected && (
-        <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.6, 0.7, 32]} />
+        <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]} geometry={geometryPool.ring}>
           <meshBasicMaterial color="#fbbf24" toneMapped={false} />
         </mesh>
       )}
@@ -68,6 +109,13 @@ function ModelContent({
   // Compute world position on hex
   const yPos = totalHeightAtHex * 0.5 + 0.5;
   const [x, , z] = axialToWorld(asset.q, asset.r, 0);
+  
+  // Get or create cached clone
+  const assetDef = useMemo(() => ASSET_CATALOG.find((a) => a.id === asset.type), [asset.type]);
+  const cachedClone = useMemo(() => {
+    if (!gltf || !gltf.scene) return null;
+    return getOrCreateClone(gltf, modelPath, assetDef);
+  }, [gltf, modelPath, assetDef]);
 
   // Keyboard & wheel handlers for selected asset
   useEffect(() => {
@@ -112,44 +160,14 @@ function ModelContent({
   }, [isSelected, asset.id, rotateAsset, adjustAssetScale, removeAsset]);
 
   // Make sure the loaded model is shown (not placeholder) and is properly scaled/positioned.
-  // We clone the gltf.scene, compute its bounding box to align the model base to y=0,
-  // apply the canonical scale from ASSET_CATALOG (if present), and enable shadows on meshes.
-  if (!gltf || !gltf.scene) {
+  if (!gltf || !gltf.scene || !cachedClone) {
     return null;
   }
-
-  // Find asset definition from catalog to get default scale
-  const assetDef = ASSET_CATALOG.find((a) => a.id === asset.type);
-  const modelScale = assetDef?.scale ?? 1.0;
-
-  // Clone scene so we can safely modify position/scale without mutating loader cache
-  const sceneClone = gltf.scene.clone(true) as THREE.Object3D;
-
-  // Ensure meshes cast/receive shadows and use realistic material settings
-  sceneClone.traverse((node: THREE.Object3D) => {
-    if ((node as THREE.Mesh).isMesh) {
-      const mesh = node as THREE.Mesh;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      // If material exists, ensure toneMapping won't prevent visibility in some setups
-      if ((mesh.material as any)?.toneMapped === undefined) {
-        // leave as-is
-      }
-    }
-  });
-
-  // Compute bounding box to align model base at y=0 before we place the group at yPos
-  const tmpBox = new THREE.Box3().setFromObject(sceneClone);
-  const minY = tmpBox.min.y || 0;
-  // Apply scale
-  sceneClone.scale.setScalar(modelScale);
-  // After scaling, the minY moves as well, so account for scale
-  const verticalOffset = -minY * modelScale;
 
   return (
     <group
       ref={groupRef}
-      position={[x, yPos + verticalOffset, z]}
+      position={[x, yPos + cachedClone.metadata.verticalOffset, z]}
       rotation={[0, asset.rotationY, 0]}
       scale={asset.scale}
       onClick={(e) => {
@@ -157,13 +175,12 @@ function ModelContent({
         onSelect(asset.id);
       }}
     >
-      {/* Insert the processed, cloned scene */}
-      <primitive object={sceneClone} />
+      {/* Insert the cached, cloned scene */}
+      <primitive object={cachedClone.clone} />
 
-      {/* Selection Ring */}
+      {/* Selection Ring - reuse geometry pool */}
       {isSelected && (
-        <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.6, 0.7, 32]} />
+        <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]} geometry={geometryPool.ring}>
           <meshBasicMaterial color="#fbbf24" toneMapped={false} />
         </mesh>
       )}

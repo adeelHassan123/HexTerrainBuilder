@@ -7,6 +7,7 @@ import { Tile, PlacedAsset, TileHeight, ToolMode, TableSize, ASSET_CATALOG } fro
 export interface MapState {
   tiles: Map<string, Tile[]>; // Map of hex key -> array of tiles at that hex (stacking)
   assets: Map<string, PlacedAsset>;
+  importedAssets: Map<string, ArrayBuffer>; // Map of asset ID -> ArrayBuffer for user-uploaded models
   selectedTool: ToolMode;
   selectedTileHeight: TileHeight;
   selectedAssetType: string;
@@ -27,11 +28,14 @@ export interface MapState {
   setTileHeight: (h: TileHeight) => void;
   setAssetType: (type: string) => void;
   setSelectedObject: (id: string | null) => void;
+  addImportedAsset: (id: string, buffer: ArrayBuffer) => void;
+  removeImportedAsset: (id: string) => void;
   addTile: (q: number, r: number) => void;
   removeTile: (id: string, q: number, r: number) => void;
   removeAllTilesAt: (q: number, r: number) => void;
   addAsset: (q: number, r: number) => void;
   removeAsset: (id: string) => void;
+  moveAsset: (id: string, q: number, r: number) => void;
   rotateAsset: (id: string, delta: number) => void;
   scaleAsset: (id: string, scale: number) => void;
   adjustAssetScale: (id: string, delta: number) => void;
@@ -48,6 +52,7 @@ export const useMapStore = create<MapState>()(
       (set, get) => ({
         tiles: new Map(),
         assets: new Map(),
+        importedAssets: new Map(),
         selectedTool: 'select',
         selectedTileHeight: 1,
         selectedAssetType: ASSET_CATALOG[0].id,
@@ -67,6 +72,18 @@ export const useMapStore = create<MapState>()(
         setTileHeight: (h) => set({ selectedTileHeight: h }),
         setAssetType: (type) => set({ selectedAssetType: type }),
         setSelectedObject: (id) => set({ selectedObjectId: id }),
+
+        addImportedAsset: (id, buffer) => set(state => {
+          const newImported = new Map(state.importedAssets);
+          newImported.set(id, buffer);
+          return { importedAssets: newImported };
+        }),
+
+        removeImportedAsset: (id) => set(state => {
+          const newImported = new Map(state.importedAssets);
+          newImported.delete(id);
+          return { importedAssets: newImported };
+        }),
 
         getTilesAt: (q, r) => {
           const key = getKey(q, r);
@@ -126,9 +143,10 @@ export const useMapStore = create<MapState>()(
           const assetId = crypto.randomUUID();
           const stackLevel = Array.from(state.assets.values()).filter(a => a.q === q && a.r === r).length;
 
-          // Verify asset type exists in catalog
-          const assetDef = ASSET_CATALOG.find(a => a.id === state.selectedAssetType);
-          if (!assetDef) return {};
+          // Verify asset type exists in catalog OR is an imported asset
+          const isImported = state.selectedAssetType.startsWith('imported-');
+          const isInCatalog = ASSET_CATALOG.find(a => a.id === state.selectedAssetType);
+          if (!isImported && !isInCatalog) return {};
 
           newAssets.set(assetId, {
             id: assetId,
@@ -146,6 +164,17 @@ export const useMapStore = create<MapState>()(
           const newAssets = new Map(state.assets);
           newAssets.delete(id);
           return { assets: newAssets, selectedObjectId: null };
+        }),
+
+        moveAsset: (id, q, r) => set(state => {
+          const asset = state.assets.get(id);
+          if (!asset) return {};
+          const newAssets = new Map(state.assets);
+          // Recalculate stack level at new location
+          const assetsAtNewLocation = Array.from(state.assets.values()).filter(a => a.q === q && a.r === r);
+          const newStackLevel = assetsAtNewLocation.length;
+          newAssets.set(id, { ...asset, q, r, stackLevel: newStackLevel });
+          return { assets: newAssets };
         }),
 
         rotateAsset: (id, delta) => set(state => {
@@ -235,6 +264,7 @@ export const useMapStore = create<MapState>()(
           for (const [key, asset] of s.assets) {
             assetsObj[key] = asset;
           }
+          // Note: importedAssets (ArrayBuffers) are NOT persisted since they can't be serialized to JSON
           return {
             tiles: tilesObj,
             assets: assetsObj,
@@ -270,11 +300,13 @@ export const useMapStore = create<MapState>()(
                 }
               }
             }
+            // importedAssets starts empty (ArrayBuffers are not persisted)
             return {
               ...currentState,
               ...ps,
               tiles,
               assets,
+              importedAssets: new Map(),
             };
           } catch (error) {
             console.error('Error merging persisted state:', error);

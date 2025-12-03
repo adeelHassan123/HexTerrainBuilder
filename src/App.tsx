@@ -33,7 +33,6 @@ export default function App() {
   const { exportMap } = useExport();
   const { rotateMode, setRotateMode, selectedObjectId, rotateAsset, isMobile, setIsMobile } = useMapStore();
 
-  // On first mount, ask user whether to load persisted map or clear it.
   useEffect(() => {
     try {
       const key = 'hexmap-storage';

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import { getKey } from '../lib/hexMath';
-import { Tile, PlacedAsset, TileHeight, ToolMode, TableSize, ASSET_CATALOG } from '../types';
+import { Tile, PlacedAsset, TileHeight, TileType, ToolMode, TableSize, ASSET_CATALOG } from '../types';
 
 export interface MapState {
   tiles: Map<string, Tile[]>; // Map of hex key -> array of tiles at that hex (stacking)
@@ -10,6 +10,8 @@ export interface MapState {
   importedAssets: Map<string, ArrayBuffer>; // Map of asset ID -> ArrayBuffer for user-uploaded models
   selectedTool: ToolMode;
   selectedTileHeight: TileHeight;
+  selectedTileType: TileType; // Terrain type (grass, path, dirt, rock)
+  showTileSelector: boolean; // Show/hide tile type selector panel
   selectedAssetType: string;
   tableSize: TableSize;
   projectName: string;
@@ -26,6 +28,8 @@ export interface MapState {
   setRotateMode: (on: boolean) => void;
   setIsMobile: (isMobile: boolean) => void;
   setTileHeight: (h: TileHeight) => void;
+  setTileType: (type: TileType) => void;
+  setShowTileSelector: (show: boolean) => void;
   setAssetType: (type: string) => void;
   setSelectedObject: (id: string | null) => void;
   addImportedAsset: (id: string, buffer: ArrayBuffer) => void;
@@ -55,6 +59,8 @@ export const useMapStore = create<MapState>()(
         importedAssets: new Map(),
         selectedTool: 'select',
         selectedTileHeight: 1,
+        selectedTileType: 'grass',
+        showTileSelector: false,
         selectedAssetType: ASSET_CATALOG[0].id,
         tableSize: { widthCm: 90, heightCm: 60 }, // Medium rectangle table
         projectName: 'Untitled Project',
@@ -70,6 +76,8 @@ export const useMapStore = create<MapState>()(
         setRotateMode: (on: boolean) => set({ rotateMode: on }),
         setIsMobile: (isMobile) => set({ isMobile }),
         setTileHeight: (h) => set({ selectedTileHeight: h }),
+        setTileType: (type) => set({ selectedTileType: type }),
+        setShowTileSelector: (show) => set({ showTileSelector: show }),
         setAssetType: (type) => set({ selectedAssetType: type }),
         setSelectedObject: (id) => set({ selectedObjectId: id }),
 
@@ -103,6 +111,7 @@ export const useMapStore = create<MapState>()(
             q,
             r,
             height: state.selectedTileHeight,
+            type: state.selectedTileType,
             id: crypto.randomUUID(),
             stackLevel: tilesAt.length,
           };

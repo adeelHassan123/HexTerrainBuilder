@@ -56,7 +56,7 @@ export function AssetLibrary() {
   return (
     <div
       className={cn(
-        "fixed right-0 top-1/2 -translate-y-1/2 z-30 flex items-start transition-all duration-500 ease-out",
+        "fixed right-0 top-1/2 -translate-y-1/2 z-30 flex items-center transition-all duration-500 ease-out",
         isOpen ? "translate-x-0" : "translate-x-[calc(100%-3rem)]",
         isMobile && "top-auto bottom-24 translate-y-0 h-[40vh]"
       )}
@@ -66,7 +66,7 @@ export function AssetLibrary() {
         variant="ghost"
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
-        className="h-24 w-12 rounded-l-xl bg-slate-900/90 backdrop-blur-md border-y border-l border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800 shadow-xl -mr-1 z-40"
+        className="h-16 w-12 rounded-l-xl bg-slate-900/90 backdrop-blur-md border-y border-l border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800 shadow-xl -mr-1 z-40 flex-shrink-0"
       >
         {isOpen ? <ChevronRight className="w-6 h-6" /> : <ChevronLeft className="w-6 h-6" />}
       </Button>
@@ -221,7 +221,11 @@ export function AssetLibrary() {
                         )}
 
                         {/* 3D Model Icon */}
-                        <div className="text-5xl filter drop-shadow-lg">📦</div>
+                        <div className="flex items-center justify-center">
+                          <svg className="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2.293-2.293a1 1 0 00-1.414 0l-2.293 2.293m0 0l-5 5v1.414a1 1 0 001 1h5.414a1 1 0 001-1v-5M6 7l2.293-2.293a1 1 0 011.414 0l2.293 2.293m0 0l5 5V8m0 0l2 2m-2-2L9 20" />
+                          </svg>
+                        </div>
 
                         {/* Delete Button */}
                         <button

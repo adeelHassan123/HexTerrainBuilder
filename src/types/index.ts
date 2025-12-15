@@ -3,11 +3,20 @@
  */
 
 export type TileHeight = 1 | 2 | 5; // cm heights
+export type TileType = 'grass' | 'path' | 'dirt' | 'rock'; // Terrain types
+
+export const TILE_TYPES: { id: TileType; name: string; color: string }[] = [
+  { id: 'grass', name: 'Grass', color: '#7cb342' },
+  { id: 'path', name: 'Path', color: '#a1887f' },
+  { id: 'dirt', name: 'Dirt', color: '#8d6e63' },
+  { id: 'rock', name: 'Rock', color: '#616161' },
+];
 
 export interface Tile {
   q: number;
   r: number;
   height: TileHeight;
+  type: TileType; // Terrain type
   id: string;
   stackLevel: number; // Which position in the stack (0 = base, 1 = on top of base, etc.)
 }

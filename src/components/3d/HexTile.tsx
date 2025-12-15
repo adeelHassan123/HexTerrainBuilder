@@ -18,10 +18,10 @@ export function HexTile({ tile, totalHeightBelow, isSelected, onSelect }: HexTil
   const edgesRef = useRef<THREE.LineSegments>(null);
   const { selectedTool } = useMapStore();
 
-  // Get material based on stack level (use cached materials to reduce GC pressure)
+  // Get material based on stack level and tile type (use cached materials to reduce GC pressure)
   const material = useMemo(() => {
-    return getCachedMaterial(tile.stackLevel, tile.height);
-  }, [tile.stackLevel, tile.height]);
+    return getCachedMaterial(tile.stackLevel, tile.height, tile.type);
+  }, [tile.stackLevel, tile.height, tile.type]);
 
   const realHeight = Math.max(0.1, tile.height * 0.5); // HEIGHT_UNIT = 0.5 for Three.js scaling (1cm = 0.5 units)
   const yPos = totalHeightBelow * 0.5 + realHeight / 2;

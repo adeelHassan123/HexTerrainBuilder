@@ -62,7 +62,7 @@ export function AssetTransformControls() {
 
   return (
     <div className={cn(
-      "fixed right-4 z-40 flex flex-col gap-2 pointer-events-auto",
+      "fixed left-4 z-30 flex flex-col gap-2 pointer-events-auto",
       isMobile ? "bottom-24 w-64" : "bottom-8"
     )}>
       <Card className="shadow-2xl bg-slate-900/90 backdrop-blur-xl border-slate-700/50 rounded-lg p-3 ring-1 ring-white/10">

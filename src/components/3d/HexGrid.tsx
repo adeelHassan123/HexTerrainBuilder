@@ -1,16 +1,10 @@
 import { useState, useRef } from 'react';
-import type { Tile } from '../../types';
-
-type WindowWithHexGridControls = Window & {
-  __hexGridControlsEnabled?: (enabled: boolean) => void;
-};
-import { ThreeEvent, useThree } from '@react-three/fiber';
+import { WindowWithHexGridControls } from '../../types';
+import { ThreeEvent, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useMapStore } from '../../store/useMapStore';
-import { HexTile } from './HexTile';
 import { GridOverlay } from './GridOverlay';
 import { worldToAxial, axialToWorld, getKey, isHexInBounds, HEX_SIZE } from '../../lib/hexMath';
-import { useFrame } from '@react-three/fiber';
 
 export function HexGrid() {
   const {
@@ -20,7 +14,6 @@ export function HexGrid() {
     addAsset,
     selectedTileHeight,
     getTotalHeightAt,
-    selectedObjectId,
     setSelectedObject,
     tableSize,
     assets,
@@ -77,19 +70,19 @@ export function HexGrid() {
     const rect = canvas.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    
+
     pointerRef.current.set(x, y);
     raycasterRef.current.setFromCamera(pointerRef.current, camera);
-    
+
     // First, try to intersect with existing tiles
     const intersects = raycasterRef.current.intersectObjects(
       scene.getObjectByName('tiles')?.children || []
     );
-    
+
     if (intersects.length > 0) {
       return intersects[0].point;
     }
-    
+
     // If no tile intersection, use ground plane
     const planeIntersection = new THREE.Vector3();
     raycasterRef.current.ray.intersectPlane(groundPlaneRef.current, planeIntersection);
@@ -99,19 +92,19 @@ export function HexGrid() {
   // Smooth preview movement with improved performance
   useFrame((_, delta) => {
     if (!previewGroupRef.current) return;
-    
+
     // Calculate dynamic lerp factor based on distance
     const distance = previewPosRef.current.distanceTo(targetPosRef.current);
     const lerpFactor = Math.min(1, (distance > 0.5 ? 20 : 10) * delta);
-    
+
     // Smooth position with easing
     previewPosRef.current.lerp(targetPosRef.current, lerpFactor);
-    
+
     // Update scale with easing
     const targetScale = hoverScale;
     const currentScale = previewGroupRef.current.scale.x;
     const scale = THREE.MathUtils.damp(currentScale, targetScale, 10, delta);
-    
+
     // Apply transforms
     previewGroupRef.current.position.copy(previewPosRef.current);
     previewGroupRef.current.scale.setScalar(scale);
@@ -136,7 +129,7 @@ export function HexGrid() {
       // Convert world position to axial coordinates with proper rounding
       const axial = worldToAxial(worldPos.x, worldPos.z);
       const inBounds = checkBounds(axial.q, axial.r);
-      
+
       // Skip if hex hasn't changed and it's been less than 100ms
       if (lastHoverHex.current?.q === axial.q && lastHoverHex.current?.r === axial.r) {
         return;
@@ -146,19 +139,19 @@ export function HexGrid() {
       if (inBounds) {
         setHoveredHex(axial);
         setIsValidPlacement(true);
-        
+
         // Calculate exact hex center position
         const [hexX, , hexZ] = axialToWorld(axial.q, axial.r, 0);
         const totalHeight = getTotalHeightAt(axial.q, axial.r);
         const realHeight = Math.max(0.1, selectedTileHeight * 0.5);
-        
+
         // Smoothly update target position
         targetPosRef.current.set(
           hexX,
           totalHeight * 0.5 + realHeight / 2,
           hexZ
         );
-        
+
         setHoverScale(1.08);
       } else {
         setHoveredHex(null);
@@ -200,7 +193,7 @@ export function HexGrid() {
     }
   };
 
-  const handleClick = (e: ThreeEvent<PointerEvent>) => {
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
     // We handle clicks in handlePointerUp to unify mouse/touch logic and prevent drag-clicks
     e.stopPropagation();
   };
@@ -244,7 +237,7 @@ export function HexGrid() {
 
       const duration = Date.now() - touchState.startTime;
       const wasTap = !touchState.hasMoved && duration < TAP_MAX_DURATION;
-      
+
       // Use hoveredHex (current mouse position) if available, otherwise fall back to startHex
       const hexToPlace = hoveredHex || touchState.startHex;
       const inBounds = checkBounds(hexToPlace.q, hexToPlace.r);
@@ -263,7 +256,7 @@ export function HexGrid() {
           );
           if (assetsAtHex.length > 0) {
             // Select the topmost asset (highest stackLevel)
-            const topAsset = assetsAtHex.reduce((a, b) => 
+            const topAsset = assetsAtHex.reduce((a, b) =>
               a.stackLevel > b.stackLevel ? a : b
             );
             setSelectedObject(topAsset.id);
@@ -300,18 +293,6 @@ export function HexGrid() {
   };
 
   // Collect all tiles with their positions
-  const allTiles: Array<{ tile: Tile; totalHeightBelow: number }> = [];
-
-  for (const [, tilesAt] of tiles) {
-    // Ensure tilesAt is always an array
-    if (!Array.isArray(tilesAt)) continue;
-    let totalHeightBelow = 0;
-    for (const tile of tilesAt as Tile[]) {
-      allTiles.push({ tile, totalHeightBelow });
-      totalHeightBelow += tile.height;
-    }
-  }
-
   return (
     <group
       onPointerMove={handlePointerMove}
@@ -326,16 +307,6 @@ export function HexGrid() {
       {/* Render hexagonal grid overlay */}
       <GridOverlay />
 
-      {/* Render all tiles */}
-      {allTiles.map(({ tile, totalHeightBelow }) => (
-        <HexTile
-          key={tile.id}
-          tile={tile}
-          totalHeightBelow={totalHeightBelow}
-          isSelected={selectedObjectId === tile.id}
-          onSelect={setSelectedObject}
-        />
-      ))}
 
       {/* Render hover preview with visual feedback */}
       {(selectedTool === 'tile' || selectedTool === 'asset') && (
@@ -397,7 +368,7 @@ export function HexGrid() {
       )}
 
       {
-        
+
       }
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}

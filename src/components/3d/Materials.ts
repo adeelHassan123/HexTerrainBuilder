@@ -31,7 +31,7 @@ const configureTexture = (texture: THREE.Texture, repeat = 2) => {
  */
 export const createGrassMaterial = () => {
   const loader = getTextureLoader();
-  
+
   const material = new THREE.MeshStandardMaterial({
     color: '#7cb342', // Natural grass green
     roughness: 0.85,
@@ -69,7 +69,7 @@ export const createGrassMaterial = () => {
  */
 export const createDirtMaterial = () => {
   const loader = getTextureLoader();
-  
+
   const material = new THREE.MeshStandardMaterial({
     color: '#8d6e63', // Brown dirt
     roughness: 0.9,
@@ -91,11 +91,41 @@ export const createDirtMaterial = () => {
 };
 
 /**
+ * Mud material for specific mud tiles
+ * High roughness, dark, messy look
+ */
+export const createMudMaterial = () => {
+  const loader = getTextureLoader();
+
+  const material = new THREE.MeshStandardMaterial({
+    color: '#4e342e', // Dark earthy brown
+    roughness: 0.95,   // Very rough
+    metalness: 0.1,    // Slight wetness reflection
+  });
+
+  // Re-use dirt texture but tinted darker via color
+  loader.load(
+    'https://cdn.jsdelivr.net/gh/mrdoob/three.js/examples/textures/terrain/backgrounddetailed6.jpg',
+    (texture) => {
+      material.map = configureTexture(texture, 2);
+      // Bump map for extra depth
+      material.bumpMap = texture;
+      material.bumpScale = 0.5;
+      material.needsUpdate = true;
+    },
+    undefined,
+    (error) => console.warn('Mud texture failed to load:', error)
+  );
+
+  return material;
+};
+
+/**
  * Rock/cliff material for level 2+ (high tiles)
  */
 export const createRockMaterial = () => {
   const loader = getTextureLoader();
-  
+
   const material = new THREE.MeshStandardMaterial({
     color: '#616161', // Dark gray rock
     roughness: 0.7,
@@ -139,7 +169,7 @@ export const createCustomGrassMaterial = (
   roughnessPath?: string
 ) => {
   const loader = getTextureLoader();
-  
+
   const material = new THREE.MeshStandardMaterial({
     color: '#ffffff', // White to show texture colors accurately
     roughness: 0.85,
@@ -242,15 +272,21 @@ const materialCache = new Map<string, THREE.MeshStandardMaterial>();
 
 export const getCachedMaterial = (
   stackLevel: number,
-  tileHeight: number
+  tileHeight: number,
+  tileType: string = 'ground'
 ): THREE.MeshStandardMaterial => {
-  const key = `${stackLevel}-${tileHeight}`;
-  
+  const key = `${stackLevel}-${tileHeight}-${tileType}`;
+
   if (!materialCache.has(key)) {
-    const material = getMaterialForTile(stackLevel, tileHeight);
-    materialCache.set(key, material);
+    // If explicit mud type, use mud material regardless of height
+    if (tileType === 'mud') {
+      materialCache.set(key, createMudMaterial());
+    } else {
+      const material = getMaterialForTile(stackLevel, tileHeight);
+      materialCache.set(key, material);
+    }
   }
-  
+
   return materialCache.get(key)!;
 };
 

@@ -9,8 +9,7 @@ import { cn } from "@/lib/utils"
 const CATEGORIES = ["Trees", "Rocks", "Buildings", "Scatter"];
 
 export function AssetLibrary() {
-  const { selectedAssetType, setAssetType, setTool, isMobile, importedAssets, addImportedAsset, removeImportedAsset } = useMapStore()
-  const [isOpen, setIsOpen] = useState(false)
+  const { selectedAssetType, setAssetType, setTool, isMobile, importedAssets, addImportedAsset, removeImportedAsset, isAssetLibraryOpen, setAssetLibraryOpen } = useMapStore()
   const [activeCategory, setActiveCategory] = useState("Trees")
   const [activeTab, setActiveTab] = useState<"quick" | "import">("quick")
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -57,7 +56,7 @@ export function AssetLibrary() {
     <div
       className={cn(
         "fixed right-0 top-1/2 -translate-y-1/2 z-30 flex items-start transition-all duration-500 ease-out",
-        isOpen ? "translate-x-0" : "translate-x-[calc(100%-3rem)]",
+        isAssetLibraryOpen ? "translate-x-0" : "translate-x-[calc(100%-3rem)]",
         isMobile && "top-auto bottom-24 translate-y-0 h-[40vh]"
       )}
     >
@@ -65,10 +64,10 @@ export function AssetLibrary() {
       <Button
         variant="ghost"
         size="icon"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setAssetLibraryOpen(!isAssetLibraryOpen)}
         className="h-24 w-12 rounded-l-xl bg-slate-900/90 backdrop-blur-md border-y border-l border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800 shadow-xl -mr-1 z-40"
       >
-        {isOpen ? <ChevronRight className="w-6 h-6" /> : <ChevronLeft className="w-6 h-6" />}
+        {isAssetLibraryOpen ? <ChevronRight className="w-6 h-6" /> : <ChevronLeft className="w-6 h-6" />}
       </Button>
 
       {/* Main Panel */}

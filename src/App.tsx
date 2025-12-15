@@ -2,8 +2,10 @@ import { Suspense, useState, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stats } from '@react-three/drei';
 import { Scene } from '@/components/3d/Scene';
+import { DayNightCycle } from '@/components/3d/DayNightCycle';
+import { ExplorerControls } from '@/components/3d/ExplorerControls';
 import { TableBoundary } from '@/components/3d/TableBoundary';
-import { OrbitVisualizer } from '@/components/3d/OrbitVisualizer';
+import { XRProvider, XRInterface } from '@/components/3d/XRWrapper';
 import { AssetTransformControls } from '@/components/ui/AssetTransformControls';
 import { ProjectInfo } from '@/components/ui/ProjectInfo';
 import { OnboardingOverlay } from '@/components/ui/OnboardingOverlay';
@@ -11,27 +13,36 @@ import { Toolbar } from '@/components/ui/Toolbar';
 import { AssetLibrary } from '@/components/ui/AssetLibrary';
 import { SaveLoadDialog } from '@/components/ui/SaveLoadDialog';
 import { MapStatsPanel } from '@/components/ui/MapStatsPanel';
+import { QualitySettings } from '@/components/ui/QualitySettings';
+import { AccessibilityAnnouncer, KeyboardShortcutsHelp } from '@/components/ui/Accessibility';
+import { TimeControls } from '@/components/ui/TimeControls';
 import { Toaster } from '@/components/ui/sonner';
 import { useExport } from '@/lib/export';
 import * as THREE from 'three';
 import { useMapStore } from '@/store/useMapStore'
+import { useQualityStore } from '@/store/useQualityStore';
 import { WelcomeScreen } from '@/components/ui/WelcomeScreen';
 import { AnimatePresence } from 'framer-motion';
-
-type WindowWithHexGridControls = Window & {
-  __hexGridControlsEnabled?: (enabled: boolean) => void
-}
+import { WindowWithHexGridControls } from '@/types';
 
 // Main App Component
 export default function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [saveLoadOpen, setSaveLoadOpen] = useState(false);
+  const [qualitySettingsOpen, setQualitySettingsOpen] = useState(false);
   const [controlsEnabled, setControlsEnabled] = useState(true);
   const [showStats, setShowStats] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const orbitControlsRef = useRef<any>(null);
   const { exportMap } = useExport();
-  const { rotateMode, setRotateMode, selectedObjectId, rotateAsset, isMobile, setIsMobile } = useMapStore();
+  const { rotateMode, setRotateMode, selectedObjectId, rotateAsset, isMobile, setIsMobile, hydrateImportedAssets, isExplorerMode } = useMapStore();
+  const { settings: qualitySettings, autoDetectQuality } = useQualityStore();
+
+  // Auto-detect quality and load imported assets on first load
+  useEffect(() => {
+    autoDetectQuality();
+    hydrateImportedAssets();
+  }, [autoDetectQuality, hydrateImportedAssets]);
 
   useEffect(() => {
     try {
@@ -111,10 +122,7 @@ export default function App() {
 
   // Expose controls state to HexGrid via window (temporary solution)
   useEffect(() => {
-    type WindowWithHexGridControls = Window & {
-      __hexGridControlsEnabled?: (enabled: boolean) => void
-    }
-      ; (window as WindowWithHexGridControls).__hexGridControlsEnabled = setControlsEnabled;
+    (window as WindowWithHexGridControls).__hexGridControlsEnabled = setControlsEnabled;
     return () => {
       delete (window as WindowWithHexGridControls).__hexGridControlsEnabled;
     };
@@ -131,6 +139,25 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Handle exiting Explorer Mode - Reset Camera
+  const prevExplorerMode = useRef(isExplorerMode);
+  useEffect(() => {
+    if (prevExplorerMode.current && !isExplorerMode) {
+      // Just exited Explorer Mode
+      if (orbitControlsRef.current && canvasRef.current) {
+        const controls = orbitControlsRef.current;
+        const camera = controls.object;
+
+        // Reset to a nice overhead view
+        camera.position.set(15, 20, 15);
+        controls.target.set(0, 0, 0); // Look at center
+
+        controls.update();
+      }
+    }
+    prevExplorerMode.current = isExplorerMode;
+  }, [isExplorerMode]);
 
   // Arrow key camera panning
   useEffect(() => {
@@ -213,53 +240,25 @@ export default function App() {
           far: 1000
         }}
         gl={{
-          antialias: true,
+          antialias: qualitySettings.antialias,
           toneMapping: THREE.ACESFilmicToneMapping
         }}
         shadows
-        dpr={typeof window !== 'undefined' ? [1, Math.min(window.devicePixelRatio, 2)] : 1}
+        dpr={qualitySettings.pixelRatio}
       >
         <Suspense fallback={null}>
-          {/* Sky-blue background */}
-          <color attach="background" args={['#87CEEB']} />
+          <XRProvider>
+            {/* Dynamic Day/Night Lighting Control */}
+            <DayNightCycle />
+            <ExplorerControls />
 
-          {/* Phase 3: Cinematic Outdoor Lighting */}
-
-          {/* Hemisphere light for realistic sky/ground ambient */}
-          <hemisphereLight
-            args={['#87CEEB', '#6B8E23', 0.4]} // Sky blue, olive ground, moderate intensity
-            position={[0, 50, 0]}
-          />
-
-          {/* Physically correct sun directional light (warm, sharp but soft shadows) */}
-          <directionalLight
-            position={[15, 30, 15]} // Angled from above
-            intensity={1.2}
-            color="#FFF5E1" // Warm sunlight (cream white)
-            castShadow
-            shadow-mapSize-width={isMobile ? 1024 : 2048}
-            shadow-mapSize-height={isMobile ? 1024 : 2048}
-            shadow-camera-far={100}
-            shadow-camera-left={-25}
-            shadow-camera-right={25}
-            shadow-camera-top={25}
-            shadow-camera-bottom={-25}
-            shadow-bias={-0.0001}
-          />
-
-          {/* Subtle fill light to soften deep shadows */}
-          <directionalLight
-            position={[-10, 15, -10]}
-            intensity={0.3}
-            color="#B0C4DE" // Cool fill (light steel blue)
-          />
-
-          <Scene />
-          <TableBoundary />
+            <Scene />
+            <TableBoundary />
+          </XRProvider>
 
           <OrbitControls
             ref={orbitControlsRef}
-            enabled={controlsEnabled}
+            enabled={controlsEnabled && !isExplorerMode}
             enablePan={true}
             enableZoom={true}
             enableRotate={true}
@@ -282,43 +281,22 @@ export default function App() {
             }}
           />
 
-          {/* Orbit center point visualizer - follows OrbitControls target */}
-          <OrbitVisualizer controlsRef={orbitControlsRef} size={1.0} color="#fbbf24" />
-
-          <OrbitControls
-            ref={orbitControlsRef}
-            enabled={controlsEnabled}
-            enablePan={true}
-            enableZoom={true}
-            enableRotate={true}
-            minDistance={5}
-            maxDistance={50}
-            target={[0, 0, 0]}
-            dampingFactor={isMobile ? 0.2 : 0.15}
-            enableDamping={true}
-            rotateSpeed={orbitRotateSpeed}
-            panSpeed={orbitPanSpeed}
-            zoomSpeed={orbitZoomSpeed}
-            touches={{
-              ONE: THREE.TOUCH.ROTATE,
-              TWO: THREE.TOUCH.DOLLY_PAN
-            }}
-            mouseButtons={{
-              LEFT: 0, // Disable left mouse button for camera (let tile placement work)
-              MIDDLE: 1, // Pan with middle button
-              RIGHT: 2  // Rotate with right button
-            }}
-          />
 
           {/* Stats toggled with F3 */}
           {showStats && <Stats />}
 
+
         </Suspense>
       </Canvas>
+      <XRInterface />
+
+      <AccessibilityAnnouncer />
 
       <OnboardingOverlay />
+      {/* ProjectInfo with settings trigger */}
       <ProjectInfo onSave={() => setSaveLoadOpen(true)} />
       <MapStatsPanel />
+      <TimeControls />
       <Toolbar onSaveLoadOpen={() => setSaveLoadOpen(true)} onExport={handleExport} />
       <AssetLibrary />
       <AssetTransformControls />
@@ -328,7 +306,13 @@ export default function App() {
         onOpenChange={setSaveLoadOpen}
       />
 
+      <QualitySettings
+        isOpen={qualitySettingsOpen}
+        onClose={() => setQualitySettingsOpen(false)}
+      />
+
       <Toaster position="top-center" />
+      <KeyboardShortcutsHelp />
 
       <AnimatePresence>
         {showWelcome && <WelcomeScreen onStart={() => setShowWelcome(false)} />}

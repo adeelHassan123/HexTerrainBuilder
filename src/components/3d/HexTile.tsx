@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { useRef, useMemo, useEffect } from 'react';
 import { axialToWorld, HEX_SIZE } from '../../lib/hexMath';
 import { getCachedMaterial } from './Materials';
+import { WaterMesh } from './WaterHex';
 import type { Tile } from '../../types';
 
 interface HexTileProps {
@@ -68,16 +69,20 @@ export function HexTile({ tile, totalHeightBelow, isSelected, onSelect }: HexTil
       </mesh>
 
       {/* Main hex tile */}
-      <mesh
-        ref={meshRef}
-        castShadow
-        receiveShadow
-        userData={{ hexTile: { q: tile.q, r: tile.r } }}
-      >
-        {/* CRITICAL FIX: Use HEX_SIZE instead of hardcoded 1 */}
-        <cylinderGeometry args={[HEX_SIZE, HEX_SIZE, realHeight, 6]} />
-        <primitive object={material} attach="material" />
-      </mesh>
+      {tile.type === 'water' ? (
+        <WaterMesh realHeight={realHeight} isSelected={isSelected} />
+      ) : (
+        <mesh
+          ref={meshRef}
+          castShadow
+          receiveShadow
+          userData={{ hexTile: { q: tile.q, r: tile.r } }}
+        >
+          {/* CRITICAL FIX: Use HEX_SIZE instead of hardcoded 1 */}
+          <cylinderGeometry args={[HEX_SIZE, HEX_SIZE, realHeight, 6]} />
+          <primitive object={material} attach="material" />
+        </mesh>
+      )}
 
       {/* Enhanced edge definition */}
       <lineSegments ref={edgesRef}>

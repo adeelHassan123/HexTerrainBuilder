@@ -53,7 +53,7 @@ export function MinimapView({ containerRef }: MinimapViewProps) {
   }, [camera, width, depth, containerRef]);
 
   return (
-    <View track={containerRef as React.RefObject<HTMLElement>}>
+    <View track={containerRef as any}>
       <color attach="background" args={['#1e293b']} />
       <ambientLight intensity={1} />
       <directionalLight position={[10, 20, 10]} intensity={1.5} />
@@ -86,7 +86,7 @@ export function MinimapView({ containerRef }: MinimapViewProps) {
 
 // Container component that goes outside Canvas
 interface MinimapContainerProps {
-  containerRef: React.RefObject<HTMLDivElement | null>;
+  containerRef: React.RefObject<HTMLDivElement>;
 }
 
 export function MinimapContainer({ containerRef }: MinimapContainerProps) {

@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
+import { set as idbSet, del as idbDel, entries as idbEntries } from 'idb-keyval';
 import { getKey } from '../lib/hexMath';
-import { Tile, PlacedAsset, TileHeight, ToolMode, TableSize, ASSET_CATALOG } from '../types';
+import { Tile, PlacedAsset, TileHeight, ToolMode, TableSize, ASSET_CATALOG, TerrainPreset, TerrainAnalysis, PlacementSuggestion } from '../types';
+import { terrainAI, TERRAIN_PRESETS } from '../lib/terrainAI';
 
 export interface MapState {
   tiles: Map<string, Tile[]>; // Map of hex key -> array of tiles at that hex (stacking)
@@ -11,6 +13,7 @@ export interface MapState {
   selectedTool: ToolMode;
   selectedTileHeight: TileHeight;
   selectedAssetType: string;
+  selectedTileType: 'ground' | 'water' | 'mud';
   tableSize: TableSize;
   projectName: string;
   selectedObjectId: string | null; // ID of selected tile or asset
@@ -18,6 +21,15 @@ export interface MapState {
   showGrid: boolean; // Show/hide grid overlay
   rotateMode: boolean; // Global rotate mode (drag to rotate selected)
   isMobile: boolean; // UI state for mobile responsiveness
+  timeOfDay: number; // 0-24 hours, default 12 (noon)
+  isExplorerMode: boolean; // First-person explorer mode active
+  isAssetLibraryOpen: boolean;
+
+  // AI Terrain Generation
+  selectedPreset: TerrainPreset;
+  isGenerating: boolean;
+  lastAnalysis: TerrainAnalysis | null;
+  placementSuggestions: PlacementSuggestion[];
 
   // Actions
   setTool: (tool: ToolMode) => void;
@@ -25,11 +37,16 @@ export interface MapState {
   setShowGrid: (show: boolean) => void;
   setRotateMode: (on: boolean) => void;
   setIsMobile: (isMobile: boolean) => void;
+  setTimeOfDay: (time: number) => void;
+  setExplorerMode: (enabled: boolean) => void;
+  setAssetLibraryOpen: (open: boolean) => void;
   setTileHeight: (h: TileHeight) => void;
+  setTileType: (t: 'ground' | 'water' | 'mud') => void;
   setAssetType: (type: string) => void;
   setSelectedObject: (id: string | null) => void;
-  addImportedAsset: (id: string, buffer: ArrayBuffer) => void;
-  removeImportedAsset: (id: string) => void;
+  hydrateImportedAssets: () => Promise<void>;
+  addImportedAsset: (id: string, buffer: ArrayBuffer) => Promise<void>;
+  removeImportedAsset: (id: string) => Promise<void>;
   addTile: (q: number, r: number) => void;
   removeTile: (id: string, q: number, r: number) => void;
   removeAllTilesAt: (q: number, r: number) => void;
@@ -44,6 +61,13 @@ export interface MapState {
   loadProject: (data: Partial<MapState>) => void;
   getTilesAt: (q: number, r: number) => Tile[];
   getTotalHeightAt: (q: number, r: number) => number;
+
+  // AI Actions
+  setSelectedPreset: (preset: TerrainPreset) => void;
+  generateTerrain: (centerQ: number, centerR: number, radius: number) => Promise<void>;
+  analyzeCurrentTerrain: () => TerrainAnalysis;
+  getPlacementSuggestions: (q: number, r: number) => PlacementSuggestion[];
+  applySuggestion: (suggestion: PlacementSuggestion) => void;
 }
 
 export const useMapStore = create<MapState>()(
@@ -55,6 +79,7 @@ export const useMapStore = create<MapState>()(
         importedAssets: new Map(),
         selectedTool: 'select',
         selectedTileHeight: 1,
+        selectedTileType: 'ground',
         selectedAssetType: ASSET_CATALOG[0].id,
         tableSize: { widthCm: 90, heightCm: 60 }, // Medium rectangle table
         projectName: 'Untitled Project',
@@ -63,27 +88,75 @@ export const useMapStore = create<MapState>()(
         showGrid: true, // Grid visible by default
         rotateMode: false,
         isMobile: false,
+        timeOfDay: 12,
+        isExplorerMode: false,
+        isAssetLibraryOpen: false,
+
+        // AI Terrain Generation
+        selectedPreset: TERRAIN_PRESETS[0],
+        isGenerating: false,
+        lastAnalysis: null,
+        placementSuggestions: [],
 
         setTool: (tool) => set({ selectedTool: tool, selectedObjectId: null }),
         setShowLowerLayers: (show) => set({ showLowerLayers: show }),
         setShowGrid: (show) => set({ showGrid: show }),
         setRotateMode: (on: boolean) => set({ rotateMode: on }),
         setIsMobile: (isMobile) => set({ isMobile }),
+        setTimeOfDay: (time) => set({ timeOfDay: time }),
+        setExplorerMode: (enabled) => set({ isExplorerMode: enabled }),
+        setAssetLibraryOpen: (open) => set({ isAssetLibraryOpen: open }),
         setTileHeight: (h) => set({ selectedTileHeight: h }),
+        setTileType: (t) => set({ selectedTileType: t }),
         setAssetType: (type) => set({ selectedAssetType: type }),
         setSelectedObject: (id) => set({ selectedObjectId: id }),
 
-        addImportedAsset: (id, buffer) => set(state => {
-          const newImported = new Map(state.importedAssets);
-          newImported.set(id, buffer);
-          return { importedAssets: newImported };
-        }),
+        hydrateImportedAssets: async () => {
+          try {
+            const allEntries = await idbEntries();
+            if (allEntries && allEntries.length > 0) {
+              const newMap = new Map<string, ArrayBuffer>();
+              for (const [key, val] of allEntries) {
+                if (typeof key === 'string' && key.startsWith('imported-') && val instanceof ArrayBuffer) {
+                  newMap.set(key, val);
+                }
+              }
+              if (newMap.size > 0) {
+                set({ importedAssets: newMap });
+              }
+            }
+          } catch (e) {
+            console.error('Failed to hydrate assets from IDB', e);
+          }
+        },
 
-        removeImportedAsset: (id) => set(state => {
-          const newImported = new Map(state.importedAssets);
-          newImported.delete(id);
-          return { importedAssets: newImported };
-        }),
+        addImportedAsset: async (id, buffer) => {
+          // Update memory
+          set(state => {
+            const newImported = new Map(state.importedAssets);
+            newImported.set(id, buffer);
+            return { importedAssets: newImported };
+          });
+          // Update DB
+          try {
+            await idbSet(id, buffer);
+          } catch (e) {
+            console.error('Failed to save to IDB', e);
+          }
+        },
+
+        removeImportedAsset: async (id) => {
+          set(state => {
+            const newImported = new Map(state.importedAssets);
+            newImported.delete(id);
+            return { importedAssets: newImported };
+          });
+          try {
+            await idbDel(id);
+          } catch (e) {
+            console.error('Failed to delete from IDB', e);
+          }
+        },
 
         getTilesAt: (q, r) => {
           const key = getKey(q, r);
@@ -105,6 +178,7 @@ export const useMapStore = create<MapState>()(
             height: state.selectedTileHeight,
             id: crypto.randomUUID(),
             stackLevel: tilesAt.length,
+            type: state.selectedTileType,
           };
           const newTiles = new Map(state.tiles);
           newTiles.set(key, [...tilesAt, newTile]);
@@ -250,6 +324,70 @@ export const useMapStore = create<MapState>()(
             }
           }
           set({ ...data, tiles, assets, selectedObjectId: null });
+        },
+
+        // AI Actions Implementation
+        setSelectedPreset: (preset) => set({ selectedPreset: preset }),
+
+        generateTerrain: async (centerQ, centerR, radius) => {
+          set({ isGenerating: true });
+
+          try {
+            // Generate height map
+            const heightMap = terrainAI.generateHeightMap(centerQ, centerR, radius);
+
+            // Generate tiles from height map
+            const newTiles = terrainAI.generateTilesFromHeightMap(heightMap, get().selectedPreset);
+
+            // Generate assets
+            const newAssets = terrainAI.generateAssets(newTiles, get().selectedPreset, get().assets);
+
+            // Update store with generated terrain
+            const currentTiles = get().tiles;
+            const currentAssets = get().assets;
+
+            // Merge new tiles with existing ones
+            const mergedTiles = new Map(currentTiles);
+            for (const [key, tileStack] of newTiles) {
+              mergedTiles.set(key, tileStack);
+            }
+
+            // Add new assets
+            const mergedAssets = new Map(currentAssets);
+            for (const asset of newAssets) {
+              mergedAssets.set(asset.id, asset);
+            }
+
+            set({
+              tiles: mergedTiles,
+              assets: mergedAssets,
+              isGenerating: false
+            });
+          } catch (error) {
+            console.error('Terrain generation failed:', error);
+            set({ isGenerating: false });
+          }
+        },
+
+        analyzeCurrentTerrain: () => {
+          const state = get();
+          const analysis = terrainAI.analyzeTerrain(state.tiles, state.assets);
+          set({ lastAnalysis: analysis });
+          return analysis;
+        },
+
+        getPlacementSuggestions: (q, r) => {
+          const state = get();
+          const suggestions = terrainAI.generatePlacementSuggestions(state.tiles, state.assets, q, r);
+          set({ placementSuggestions: suggestions });
+          return suggestions;
+        },
+
+        applySuggestion: (suggestion) => {
+          const state = get();
+          state.setTool('asset');
+          state.setAssetType(suggestion.assetType);
+          // The actual placement will happen when user clicks on the hex
         },
       }),
       {

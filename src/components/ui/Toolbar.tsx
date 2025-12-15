@@ -2,13 +2,14 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMapStore } from "@/store/useMapStore"
-import { Trash2, Move, Mountain, Box, Save, Download } from "lucide-react"
+import { Trash2, Move, Mountain, Box, Save, Download, Droplets, Compass } from "lucide-react"
+import { TileHeight, ToolMode } from "@/types"
+import { cn } from "@/lib/utils"
+
 interface ToolbarProps {
   onSaveLoadOpen: () => void
   onExport?: (format: string) => void
 }
-import { TileHeight, ToolMode } from "@/types"
-import { cn } from "@/lib/utils"
 
 export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
   const {
@@ -16,9 +17,13 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
     setTool,
     selectedTileHeight,
     setTileHeight,
+    selectedTileType,
+    setTileType,
     deleteSelected,
     selectedObjectId,
-    isMobile
+    isMobile,
+    isExplorerMode,
+    setExplorerMode
   } = useMapStore()
   const { clearMap, rotateMode, setRotateMode } = useMapStore()
 
@@ -37,10 +42,53 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
       isMobile ? "bottom-4" : "bottom-8"
     )}>
 
-      {/* Height Selector - Context Aware (Only shows when Tile tool is active) */}
+      {/* Type Selector - Context Aware (Only shows when Tile tool is active) */}
       <div className={cn(
         "flex items-center gap-2 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-full border border-slate-700/50 shadow-xl transition-all duration-300 pointer-events-auto",
         selectedTool === 'tile' ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none absolute bottom-0"
+      )}>
+        <button
+          onClick={() => setTileType('ground')}
+          className={cn(
+            "w-8 h-8 rounded-full transition-all duration-200 flex items-center justify-center",
+            selectedTileType === 'ground'
+              ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-110"
+              : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+          )}
+          title="Ground"
+        >
+          <Mountain className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setTileType('water')}
+          className={cn(
+            "w-8 h-8 rounded-full transition-all duration-200 flex items-center justify-center",
+            selectedTileType === 'water'
+              ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 scale-110"
+              : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+          )}
+          title="Water"
+        >
+          <Droplets className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setTileType('mud')}
+          className={cn(
+            "w-8 h-8 rounded-full transition-all duration-200 flex items-center justify-center",
+            selectedTileType === 'mud'
+              ? "bg-amber-800 text-white shadow-lg shadow-amber-800/30 scale-110"
+              : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+          )}
+          title="Mud"
+        >
+          <Box className="w-4 h-4" /> {/* Fallback icon, distinct from mountain */}
+        </button>
+      </div>
+
+      {/* Height Selector - Context Aware (Only shows when Tile tool is active AND not water) */}
+      <div className={cn(
+        "flex items-center gap-2 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-full border border-slate-700/50 shadow-xl transition-all duration-300 pointer-events-auto",
+        (selectedTool === 'tile' && selectedTileType !== 'water') ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none absolute bottom-0"
       )}>
         {([1, 2, 5] as TileHeight[]).map((height) => (
           <button
@@ -140,6 +188,29 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
               </TooltipTrigger>
               <TooltipContent side="top" className="bg-slate-900 border-slate-700 text-slate-200">
                 <p>Save / Load</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setExplorerMode(!isExplorerMode)}
+                  className={cn(
+                    "w-10 h-10 rounded-xl transition-all duration-300",
+                    isExplorerMode
+                      ? "bg-amber-500/20 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.3)] animate-pulse"
+                      : "bg-slate-800/20 hover:bg-slate-700/30 text-slate-300"
+                  )}
+                >
+                  <Compass className="w-5 h-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="bg-slate-900 border-slate-700 text-slate-200">
+                <p>{isExplorerMode ? 'Exit Explorer Mode (ESC)' : 'Explorer Mode (WASD)'}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

@@ -7,7 +7,7 @@ import { RotateCw, ZoomIn, ZoomOut, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function AssetTransformControls() {
-  const { selectedObjectId, assets, rotateAsset, adjustAssetScale, isMobile, isAssetLibraryOpen } = useMapStore();
+  const { selectedObjectId, assets, rotateAsset, adjustAssetScale, isMobile } = useMapStore();
   const [scale, setScale] = useState(1.0);
   const [rotation, setRotation] = useState(0);
 
@@ -63,9 +63,9 @@ export function AssetTransformControls() {
   return (
     <div className={cn(
       "fixed z-40 transition-all duration-300 pointer-events-auto",
-      // Position logic: Move left if library is open
-      isAssetLibraryOpen ? "right-96" : "right-20",
-      isMobile ? "bottom-32" : "bottom-8"
+      // Stack on left side below Time Controls
+      "left-6 top-96",
+      isMobile && "top-auto bottom-32"
     )}>
       <Card className="shadow-2xl bg-slate-900/90 backdrop-blur-xl border-slate-700/50 rounded-lg p-2 ring-1 ring-white/10 w-fit">
         <div className="flex items-center gap-2">

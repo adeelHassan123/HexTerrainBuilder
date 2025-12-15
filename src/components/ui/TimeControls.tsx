@@ -17,8 +17,8 @@ export function TimeControls() {
 
     return (
         <Card className={cn(
-            "fixed right-4 top-20 z-20 p-3 bg-slate-900/80 backdrop-blur-md border-slate-700/50 w-64",
-            isMobile && "top-auto bottom-32 left-4 w-[calc(100vw-2rem)]"
+            "fixed left-6 top-60 z-20 p-3 bg-slate-900/80 backdrop-blur-md border-slate-700/50 w-64",
+            isMobile && "left-4 w-[calc(100vw-2rem)] top-auto bottom-32"
         )}>
             <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">

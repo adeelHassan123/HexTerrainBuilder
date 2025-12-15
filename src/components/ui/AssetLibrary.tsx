@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMapStore } from "@/store/useMapStore"
 import { ASSET_CATALOG } from "@/types"
-import { Check, Package, ChevronRight, ChevronLeft, Upload, X } from "lucide-react"
+import { Check, Package, ChevronRight, Upload, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const CATEGORIES = ["Trees", "Rocks", "Buildings", "Scatter"];
@@ -61,13 +61,15 @@ export function AssetLibrary() {
       )}
     >
       {/* Toggle Handle */}
+      {/* Toggle Handle */}
       <Button
         variant="ghost"
         size="icon"
         onClick={() => setAssetLibraryOpen(!isAssetLibraryOpen)}
-        className="h-24 w-12 rounded-l-xl bg-slate-900/90 backdrop-blur-md border-y border-l border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800 shadow-xl -mr-1 z-40"
+        className="h-10 w-10 rounded-l-lg bg-slate-900/90 backdrop-blur-md border-y border-l border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800 shadow-xl -mr-1 z-40"
+        aria-label={isAssetLibraryOpen ? "Close Asset Library" : "Open Asset Library"}
       >
-        {isAssetLibraryOpen ? <ChevronRight className="w-6 h-6" /> : <ChevronLeft className="w-6 h-6" />}
+        {isAssetLibraryOpen ? <ChevronRight className="w-5 h-5" /> : <Package className="w-5 h-5" />}
       </Button>
 
       {/* Main Panel */}

@@ -200,7 +200,7 @@ export function HexGrid() {
     }
   };
 
-  const handleClick = (e: ThreeEvent<PointerEvent>) => {
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
     // We handle clicks in handlePointerUp to unify mouse/touch logic and prevent drag-clicks
     e.stopPropagation();
   };

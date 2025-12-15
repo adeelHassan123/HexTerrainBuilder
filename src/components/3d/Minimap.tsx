@@ -53,7 +53,7 @@ export function MinimapView({ containerRef }: MinimapViewProps) {
   }, [camera, width, depth, containerRef]);
 
   return (
-    <View track={containerRef as React.RefObject<HTMLElement>}>
+    <View track={containerRef as React.MutableRefObject<HTMLElement>}>
       <color attach="background" args={['#1e293b']} />
       <ambientLight intensity={1} />
       <directionalLight position={[10, 20, 10]} intensity={1.5} />
@@ -94,7 +94,7 @@ export function MinimapContainer({ containerRef }: MinimapContainerProps) {
 
   return (
     <div
-      ref={containerRef}
+      ref={containerRef as React.RefObject<HTMLDivElement>}
       className={cn(
         "fixed border-2 border-primary rounded-lg overflow-hidden bg-background shadow-xl z-40 cursor-crosshair pointer-events-auto transition-all duration-300",
         isMobile

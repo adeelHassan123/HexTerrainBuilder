@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -127,10 +127,9 @@ export function TerrainGenerator({ isOpen, onClose }: TerrainGeneratorProps) {
               {/* Preset Preview */}
               <Card className="p-4">
                 <div className="flex items-start gap-3">
-                  {(() => {
-                    const Icon = getTerrainIcon(selectedPreset.id);
-                    return <Icon className="w-8 h-8 text-primary mt-1" />;
-                  })()}
+                  {React.createElement(getTerrainIcon(selectedPreset.id), {
+                    className: "w-8 h-8 text-primary mt-1"
+                  })}
                   <div className="flex-1">
                     <h4 className="font-semibold">{selectedPreset.name}</h4>
                     <p className="text-sm text-muted-foreground mb-3">{selectedPreset.description}</p>

@@ -3,7 +3,8 @@ import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import { set as idbSet, del as idbDel, entries as idbEntries } from 'idb-keyval';
 import { getKey } from '../lib/hexMath';
-import { Tile, PlacedAsset, TileHeight, TileType, ToolMode, TableSize, ASSET_CATALOG, TerrainPreset, TerrainAnalysis, PlacementSuggestion } from '../types';
+import { Tile, PlacedAsset, TileHeight, TileType, ToolMode, TableSize, TerrainPreset, TerrainAnalysis, PlacementSuggestion } from '../types';
+import { ASSET_CATALOG } from '../config/assets';
 import { terrainAI, TERRAIN_PRESETS } from '../lib/terrainAI';
 
 export interface MapState {
@@ -15,7 +16,6 @@ export interface MapState {
   selectedTileType: TileType; // Terrain type (grass, path, dirt, rock)
   showTileSelector: boolean; // Show/hide tile type selector panel
   selectedAssetType: string;
-  selectedTileType: 'ground' | 'water' | 'mud';
   tableSize: TableSize;
   projectName: string;
   selectedObjectId: string | null; // ID of selected tile or asset
@@ -45,7 +45,6 @@ export interface MapState {
   setTileHeight: (h: TileHeight) => void;
   setTileType: (type: TileType) => void;
   setShowTileSelector: (show: boolean) => void;
-  setTileType: (t: 'ground' | 'water' | 'mud') => void;
   setAssetType: (type: string) => void;
   setSelectedObject: (id: string | null) => void;
   hydrateImportedAssets: () => Promise<void>;
@@ -85,7 +84,7 @@ export const useMapStore = create<MapState>()(
         selectedTileHeight: 1,
         selectedTileType: 'grass',
         showTileSelector: false,
-        selectedAssetType: ASSET_CATALOG[0].id,
+        selectedAssetType: 'tree_pine_medium',
         tableSize: { widthCm: 90, heightCm: 60 }, // Medium rectangle table
         projectName: 'Untitled Project',
         selectedObjectId: null,
@@ -112,7 +111,8 @@ export const useMapStore = create<MapState>()(
         setExplorerMode: (enabled) => set({ isExplorerMode: enabled }),
         setAssetLibraryOpen: (open) => set({ isAssetLibraryOpen: open }),
         setTileHeight: (h) => set({ selectedTileHeight: h }),
-        setTileType: (type) => set({ selectedTileType: t }),
+        setTileType: (type) => set({ selectedTileType: type }),
+        setShowTileSelector: (show) => set({ showTileSelector: show }),
         setAssetType: (type) => set({ selectedAssetType: type }),
         setSelectedObject: (id) => set({ selectedObjectId: id }),
 
@@ -184,7 +184,6 @@ export const useMapStore = create<MapState>()(
             type: state.selectedTileType,
             id: crypto.randomUUID(),
             stackLevel: tilesAt.length,
-            type: state.selectedTileType,
           };
           const newTiles = new Map(state.tiles);
           newTiles.set(key, [...tilesAt, newTile]);
@@ -269,8 +268,8 @@ export const useMapStore = create<MapState>()(
           const asset = state.assets.get(id);
           if (!asset) return {};
           const newAssets = new Map(state.assets);
-          // Clamp scale between 0.1 and 10.0 (1000%)
-          const clampedScale = Math.max(0.1, Math.min(10.0, scale));
+          // Clamp scale between 0.0 and 15.0 (0% to 1500%)
+          const clampedScale = Math.max(0.0, Math.min(15.0, scale));
           newAssets.set(id, { ...asset, scale: clampedScale });
           return { assets: newAssets };
         }),
@@ -279,8 +278,8 @@ export const useMapStore = create<MapState>()(
           const asset = state.assets.get(id);
           if (!asset) return {};
           const newAssets = new Map(state.assets);
-          // Clamp scale between 0.1 and 10.0 (1000%)
-          const clampedScale = Math.max(0.1, Math.min(10.0, asset.scale + delta));
+          // Clamp scale between 0.0 and 15.0 (0% to 1500%)
+          const clampedScale = Math.max(0.0, Math.min(15.0, asset.scale + delta));
           newAssets.set(id, { ...asset, scale: clampedScale });
           return { assets: newAssets };
         }),

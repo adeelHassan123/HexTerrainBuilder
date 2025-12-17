@@ -22,6 +22,7 @@ import * as THREE from 'three';
 import { useMapStore } from '@/store/useMapStore'
 import { useQualityStore } from '@/store/useQualityStore';
 import { WelcomeScreen } from '@/components/ui/WelcomeScreen';
+import { TerrainGenerator } from '@/components/ui/TerrainGenerator';
 import { AnimatePresence } from 'framer-motion';
 import { WindowWithHexGridControls } from '@/types';
 
@@ -29,6 +30,7 @@ import { WindowWithHexGridControls } from '@/types';
 export default function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [saveLoadOpen, setSaveLoadOpen] = useState(false);
+  const [terrainGeneratorOpen, setTerrainGeneratorOpen] = useState(false);
   const [qualitySettingsOpen, setQualitySettingsOpen] = useState(false);
   const [controlsEnabled, setControlsEnabled] = useState(true);
   const [showStats, setShowStats] = useState(false);
@@ -297,7 +299,11 @@ export default function App() {
       <ProjectInfo onSave={() => setSaveLoadOpen(true)} />
       <MapStatsPanel />
       <TimeControls />
-      <Toolbar onSaveLoadOpen={() => setSaveLoadOpen(true)} onExport={handleExport} />
+      <Toolbar
+        onSaveLoadOpen={() => setSaveLoadOpen(true)}
+        onExport={handleExport}
+        onTerrainGeneratorOpen={() => setTerrainGeneratorOpen(true)}
+      />
       <AssetLibrary />
       <AssetTransformControls />
 
@@ -309,6 +315,11 @@ export default function App() {
       <QualitySettings
         isOpen={qualitySettingsOpen}
         onClose={() => setQualitySettingsOpen(false)}
+      />
+
+      <TerrainGenerator
+        isOpen={terrainGeneratorOpen}
+        onClose={() => setTerrainGeneratorOpen(false)}
       />
 
       <Toaster position="top-center" />

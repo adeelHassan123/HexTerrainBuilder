@@ -2,25 +2,22 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMapStore } from "@/store/useMapStore"
-import { X, Move, Mountain, Box, Save, Download, Trash2, Droplets, Compass } from "lucide-react"
+import { X, Move, Mountain, Box, Save, Download, Trash2, Droplets, Compass, Sparkles } from "lucide-react"
 import React from "react"
 import { TileSelector } from "./TileSelector"
-import { TileHeight, ToolMode } from "@/types"
+import { ToolMode } from "@/types"
 import { cn } from "@/lib/utils"
 
 interface ToolbarProps {
   onSaveLoadOpen: () => void
   onExport?: (format: string) => void
+  onTerrainGeneratorOpen?: () => void
 }
-import { ToolMode } from "@/types"
-import { cn } from "@/lib/utils"
 
-export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
+export function Toolbar({ onSaveLoadOpen, onExport, onTerrainGeneratorOpen }: ToolbarProps) {
   const {
     selectedTool,
     setTool,
-    selectedTileHeight,
-    setTileHeight,
     selectedTileType,
     setTileType,
     deleteSelected,
@@ -31,7 +28,7 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
     showTileSelector,
     setShowTileSelector
   } = useMapStore()
-  const { clearMap, rotateMode, setRotateMode } = useMapStore()
+  const { clearMap, rotateMode, setRotateMode, isGenerating } = useMapStore()
 
   // Handle keyboard shortcuts
   React.useEffect(() => {
@@ -98,14 +95,14 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
         selectedTool === 'tile' ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none absolute bottom-0"
       )}>
         <button
-          onClick={() => setTileType('ground')}
+          onClick={() => setTileType('grass')}
           className={cn(
             "w-8 h-8 rounded-full transition-all duration-200 flex items-center justify-center",
-            selectedTileType === 'ground'
+            selectedTileType === 'grass'
               ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-110"
               : "text-slate-400 hover:text-white hover:bg-slate-700/50"
           )}
-          title="Ground"
+          title="Grass"
         >
           <Mountain className="w-4 h-4" />
         </button>
@@ -138,8 +135,6 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
       {/* Height Selector - Context Aware (Only shows when Tile tool is active AND not water) */}
       <div className={cn(
         "flex items-center gap-2 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-full border border-slate-700/50 shadow-xl transition-all duration-300 pointer-events-auto",
-        (selectedTool === 'tile' && selectedTileType !== 'water') ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none absolute bottom-0"
-        "transition-all duration-300 pointer-events-auto",
         selectedTool === 'tile' && showTileSelector ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none absolute bottom-0"
       )}>
         <TileSelector />
@@ -252,6 +247,26 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
               </TooltipTrigger>
               <TooltipContent side="top" className="bg-slate-900 border-slate-700 text-slate-200">
                 <p>{isExplorerMode ? 'Exit Explorer Mode (ESC)' : 'Explorer Mode (WASD)'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onTerrainGeneratorOpen?.()}
+                  disabled={isGenerating}
+                  className="w-10 h-10 rounded-xl bg-slate-800/20 hover:bg-slate-700/30 text-slate-300"
+                >
+                  <Sparkles className={cn("w-5 h-5 text-purple-400", isGenerating && "animate-spin")} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="bg-slate-900 border-slate-700 text-slate-200">
+                <p>AI Terrain Generator</p>
+                <p className="text-xs text-slate-400 mt-1">Generate intelligent landscapes</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

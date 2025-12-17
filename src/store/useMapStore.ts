@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import { set as idbSet, del as idbDel, entries as idbEntries } from 'idb-keyval';
 import { getKey } from '../lib/hexMath';
-import { Tile, PlacedAsset, TileHeight, ToolMode, TableSize, ASSET_CATALOG, TerrainPreset, TerrainAnalysis, PlacementSuggestion } from '../types';
+import { Tile, PlacedAsset, TileHeight, TileType, ToolMode, TableSize, ASSET_CATALOG, TerrainPreset, TerrainAnalysis, PlacementSuggestion } from '../types';
 import { terrainAI, TERRAIN_PRESETS } from '../lib/terrainAI';
 
 export interface MapState {
@@ -12,6 +12,8 @@ export interface MapState {
   importedAssets: Map<string, ArrayBuffer>; // Map of asset ID -> ArrayBuffer for user-uploaded models
   selectedTool: ToolMode;
   selectedTileHeight: TileHeight;
+  selectedTileType: TileType; // Terrain type (grass, path, dirt, rock)
+  showTileSelector: boolean; // Show/hide tile type selector panel
   selectedAssetType: string;
   selectedTileType: 'ground' | 'water' | 'mud';
   tableSize: TableSize;
@@ -41,6 +43,8 @@ export interface MapState {
   setExplorerMode: (enabled: boolean) => void;
   setAssetLibraryOpen: (open: boolean) => void;
   setTileHeight: (h: TileHeight) => void;
+  setTileType: (type: TileType) => void;
+  setShowTileSelector: (show: boolean) => void;
   setTileType: (t: 'ground' | 'water' | 'mud') => void;
   setAssetType: (type: string) => void;
   setSelectedObject: (id: string | null) => void;
@@ -79,7 +83,8 @@ export const useMapStore = create<MapState>()(
         importedAssets: new Map(),
         selectedTool: 'select',
         selectedTileHeight: 1,
-        selectedTileType: 'ground',
+        selectedTileType: 'grass',
+        showTileSelector: false,
         selectedAssetType: ASSET_CATALOG[0].id,
         tableSize: { widthCm: 90, heightCm: 60 }, // Medium rectangle table
         projectName: 'Untitled Project',
@@ -107,7 +112,7 @@ export const useMapStore = create<MapState>()(
         setExplorerMode: (enabled) => set({ isExplorerMode: enabled }),
         setAssetLibraryOpen: (open) => set({ isAssetLibraryOpen: open }),
         setTileHeight: (h) => set({ selectedTileHeight: h }),
-        setTileType: (t) => set({ selectedTileType: t }),
+        setTileType: (type) => set({ selectedTileType: t }),
         setAssetType: (type) => set({ selectedAssetType: type }),
         setSelectedObject: (id) => set({ selectedObjectId: id }),
 
@@ -176,6 +181,7 @@ export const useMapStore = create<MapState>()(
             q,
             r,
             height: state.selectedTileHeight,
+            type: state.selectedTileType,
             id: crypto.randomUUID(),
             stackLevel: tilesAt.length,
             type: state.selectedTileType,

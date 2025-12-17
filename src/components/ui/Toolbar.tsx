@@ -2,7 +2,9 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMapStore } from "@/store/useMapStore"
-import { Trash2, Move, Mountain, Box, Save, Download, Droplets, Compass } from "lucide-react"
+import { X, Move, Mountain, Box, Save, Download, Trash2, Droplets, Compass } from "lucide-react"
+import React from "react"
+import { TileSelector } from "./TileSelector"
 import { TileHeight, ToolMode } from "@/types"
 import { cn } from "@/lib/utils"
 
@@ -10,6 +12,8 @@ interface ToolbarProps {
   onSaveLoadOpen: () => void
   onExport?: (format: string) => void
 }
+import { ToolMode } from "@/types"
+import { cn } from "@/lib/utils"
 
 export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
   const {
@@ -23,17 +27,62 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
     selectedObjectId,
     isMobile,
     isExplorerMode,
-    setExplorerMode
+    setExplorerMode,
+    showTileSelector,
+    setShowTileSelector
   } = useMapStore()
   const { clearMap, rotateMode, setRotateMode } = useMapStore()
 
+  // Handle keyboard shortcuts
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+      
+      // Allow shortcuts unless typing in an input
+      if (!isInput) {
+        switch (key) {
+          case '1':
+            e.preventDefault();
+            setTool('tile');
+            setShowTileSelector(true);
+            break;
+          case '2':
+            e.preventDefault();
+            setTool('asset');
+            break;
+          case '3':
+            e.preventDefault();
+            setTool('select');
+            break;
+          case 'delete':
+          case 'backspace':
+            if (selectedObjectId) {
+              e.preventDefault();
+              deleteSelected();
+            }
+            break;
+          case 's':
+            if (e.ctrlKey || e.metaKey) {
+              e.preventDefault();
+              onSaveLoadOpen?.();
+            }
+            break;
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedObjectId, setTool, deleteSelected, onSaveLoadOpen, setShowTileSelector]);
+
   const tools = [
-    { id: 'tile', icon: Mountain, label: 'Add Tile' },
-    { id: 'asset', icon: Box, label: 'Add Asset' },
+    { id: 'tile', icon: Mountain, label: 'Add Tile', hotkey: '1' },
+    { id: 'asset', icon: Box, label: 'Add Asset', hotkey: '2' },
     // Use 'select' mode for moving/selection (ToolMode expects 'select')
-    { id: 'select', icon: Move, label: 'Select/Move' },
+    { id: 'select', icon: Move, label: 'Select/Move', hotkey: '3' },
     // Rotate performs an immediate action when something is selected; otherwise it falls back to select mode
-    { id: 'delete', icon: Trash2, label: 'Delete', action: deleteSelected, disabled: !selectedObjectId, danger: true },
+    { id: 'delete', icon: Trash2, label: 'Delete', action: deleteSelected, disabled: !selectedObjectId, danger: true, hotkey: 'Delete' },
   ]
 
   return (
@@ -43,6 +92,7 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
     )}>
 
       {/* Type Selector - Context Aware (Only shows when Tile tool is active) */}
+      {/* Tile Selector - Context Aware (Shows when Tile tool is active and showTileSelector is true) */}
       <div className={cn(
         "flex items-center gap-2 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-full border border-slate-700/50 shadow-xl transition-all duration-300 pointer-events-auto",
         selectedTool === 'tile' ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none absolute bottom-0"
@@ -89,21 +139,10 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
       <div className={cn(
         "flex items-center gap-2 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-full border border-slate-700/50 shadow-xl transition-all duration-300 pointer-events-auto",
         (selectedTool === 'tile' && selectedTileType !== 'water') ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none absolute bottom-0"
+        "transition-all duration-300 pointer-events-auto",
+        selectedTool === 'tile' && showTileSelector ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none absolute bottom-0"
       )}>
-        {([1, 2, 5] as TileHeight[]).map((height) => (
-          <button
-            key={height}
-            onClick={() => setTileHeight(height)}
-            className={cn(
-              "w-8 h-8 rounded-full text-xs font-bold transition-all duration-200 flex items-center justify-center",
-              selectedTileHeight === height
-                ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-110"
-                : "text-slate-400 hover:text-white hover:bg-slate-700/50"
-            )}
-          >
-            {height}
-          </button>
-        ))}
+        <TileSelector />
       </div>
 
       {/* Main Creation Bar */}
@@ -167,6 +206,7 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
                 </TooltipTrigger>
                 <TooltipContent side="top" className="bg-slate-900 border-slate-700 text-slate-200">
                   <p>{tool.id === 'rotate' ? (rotateMode ? 'Exit Rotate (drag to rotate selected)' : 'Rotate (toggle to drag-rotate)') : tool.label}</p>
+                  {tool.hotkey && <p className="text-xs text-slate-400 mt-1">Press <kbd className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600 text-slate-300">{tool.hotkey}</kbd></p>}
                 </TooltipContent>
               </Tooltip>
             )
@@ -188,6 +228,7 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
               </TooltipTrigger>
               <TooltipContent side="top" className="bg-slate-900 border-slate-700 text-slate-200">
                 <p>Save / Load</p>
+                <p className="text-xs text-slate-400 mt-1">Press <kbd className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600 text-slate-300">Ctrl+S</kbd></p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -245,7 +286,7 @@ export function Toolbar({ onSaveLoadOpen, onExport }: ToolbarProps) {
                   }}
                   className="w-10 h-10 rounded-xl bg-slate-800/20 hover:bg-red-600/10 text-slate-300"
                 >
-                  <Trash2 className="w-5 h-5 text-rose-400" />
+                  <X className="w-6 h-6 text-rose-400" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top" className="bg-slate-900 border-slate-700 text-slate-200">

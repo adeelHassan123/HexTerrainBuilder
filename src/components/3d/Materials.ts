@@ -218,27 +218,29 @@ export const createCustomGrassMaterial = (
 };
 
 /**
- * Get material based on stack level and tile height
+ * Get material based on stack level, tile height, and tile type
  * @param stackLevel Position in the stack (0 = base, 1 = mid, 2+ = high)
  * @param tileHeight Height of the individual tile (1, 2, or 5)
+ * @param tileType Type of terrain (grass, path, dirt, rock)
  * @returns Appropriate material for the tile
  */
 export const getMaterialForTile = (
-  stackLevel: number,
-  _tileHeight: number
+  _stackLevel: number,
+  _tileHeight: number,
+  tileType: string = 'grass'
 ): THREE.MeshStandardMaterial => {
-  // Level 0: Always grass (ground level)
-  if (stackLevel === 0) {
-    return createGrassMaterial();
+  // Use tile type if provided, otherwise fall back to stack level
+  switch (tileType) {
+    case 'path':
+      return createDirtMaterial(); // Path uses dirt material
+    case 'dirt':
+      return createDirtMaterial();
+    case 'rock':
+      return createRockMaterial();
+    case 'grass':
+    default:
+      return createGrassMaterial();
   }
-
-  // Level 1: Transitional dirt/grass mix
-  if (stackLevel === 1) {
-    return createDirtMaterial();
-  }
-
-  // Level 2+: Rocky cliff
-  return createRockMaterial();
 };
 
 /**
@@ -273,9 +275,9 @@ const materialCache = new Map<string, THREE.MeshStandardMaterial>();
 export const getCachedMaterial = (
   stackLevel: number,
   tileHeight: number,
-  tileType: string = 'ground'
+  tileType: string = 'grass'
 ): THREE.MeshStandardMaterial => {
-  const key = `${stackLevel}-${tileHeight}-${tileType}`;
+  const key = `${stackLevel}-${tileHeight}-${tileType}-${tileType}`;
 
   if (!materialCache.has(key)) {
     // If explicit mud type, use mud material regardless of height

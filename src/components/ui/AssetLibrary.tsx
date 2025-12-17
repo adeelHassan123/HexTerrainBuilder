@@ -222,7 +222,11 @@ export function AssetLibrary() {
                         )}
 
                         {/* 3D Model Icon */}
-                        <div className="text-5xl filter drop-shadow-lg">📦</div>
+                        <div className="flex items-center justify-center">
+                          <svg className="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2.293-2.293a1 1 0 00-1.414 0l-2.293 2.293m0 0l-5 5v1.414a1 1 0 001 1h5.414a1 1 0 001-1v-5M6 7l2.293-2.293a1 1 0 011.414 0l2.293 2.293m0 0l5 5V8m0 0l2 2m-2-2L9 20" />
+                          </svg>
+                        </div>
 
                         {/* Delete Button */}
                         <button

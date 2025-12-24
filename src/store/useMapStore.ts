@@ -11,6 +11,7 @@ export interface MapState {
   tiles: Map<string, Tile[]>; // Map of hex key -> array of tiles at that hex (stacking)
   assets: Map<string, PlacedAsset>;
   importedAssets: Map<string, ArrayBuffer>; // Map of asset ID -> ArrayBuffer for user-uploaded models
+  importedAssetNames: Map<string, string>; // Map of asset ID -> filename
   selectedTool: ToolMode;
   selectedTileHeight: TileHeight;
   selectedTileType: TileType; // Terrain type (grass, path, dirt, rock)
@@ -48,7 +49,7 @@ export interface MapState {
   setAssetType: (type: string) => void;
   setSelectedObject: (id: string | null) => void;
   hydrateImportedAssets: () => Promise<void>;
-  addImportedAsset: (id: string, buffer: ArrayBuffer) => Promise<void>;
+  addImportedAsset: (id: string, buffer: ArrayBuffer, filename: string) => Promise<void>;
   removeImportedAsset: (id: string) => Promise<void>;
   addTile: (q: number, r: number) => void;
   removeTile: (id: string, q: number, r: number) => void;
@@ -80,6 +81,7 @@ export const useMapStore = create<MapState>()(
         tiles: new Map(),
         assets: new Map(),
         importedAssets: new Map(),
+        importedAssetNames: new Map(),
         selectedTool: 'select',
         selectedTileHeight: 1,
         selectedTileType: 'grass',
@@ -121,13 +123,19 @@ export const useMapStore = create<MapState>()(
             const allEntries = await idbEntries();
             if (allEntries && allEntries.length > 0) {
               const newMap = new Map<string, ArrayBuffer>();
+              const newNames = new Map<string, string>();
               for (const [key, val] of allEntries) {
-                if (typeof key === 'string' && key.startsWith('imported-') && val instanceof ArrayBuffer) {
-                  newMap.set(key, val);
+                if (typeof key === 'string') {
+                  if (key.startsWith('imported-') && key.endsWith('__name') && typeof val === 'string') {
+                    const assetId = key.slice(0, -'__name'.length);
+                    newNames.set(assetId, val);
+                  } else if (key.startsWith('imported-') && val instanceof ArrayBuffer) {
+                    newMap.set(key, val);
+                  }
                 }
               }
               if (newMap.size > 0) {
-                set({ importedAssets: newMap });
+                set({ importedAssets: newMap, importedAssetNames: newNames });
               }
             }
           } catch (e) {
@@ -135,16 +143,19 @@ export const useMapStore = create<MapState>()(
           }
         },
 
-        addImportedAsset: async (id, buffer) => {
+        addImportedAsset: async (id, buffer, filename) => {
           // Update memory
           set(state => {
             const newImported = new Map(state.importedAssets);
             newImported.set(id, buffer);
-            return { importedAssets: newImported };
+            const newNames = new Map(state.importedAssetNames);
+            newNames.set(id, filename);
+            return { importedAssets: newImported, importedAssetNames: newNames };
           });
           // Update DB
           try {
             await idbSet(id, buffer);
+            await idbSet(`${id}__name`, filename);
           } catch (e) {
             console.error('Failed to save to IDB', e);
           }
@@ -154,10 +165,13 @@ export const useMapStore = create<MapState>()(
           set(state => {
             const newImported = new Map(state.importedAssets);
             newImported.delete(id);
-            return { importedAssets: newImported };
+            const newNames = new Map(state.importedAssetNames);
+            newNames.delete(id);
+            return { importedAssets: newImported, importedAssetNames: newNames };
           });
           try {
             await idbDel(id);
+            await idbDel(`${id}__name`);
           } catch (e) {
             console.error('Failed to delete from IDB', e);
           }
@@ -450,6 +464,7 @@ export const useMapStore = create<MapState>()(
               tiles,
               assets,
               importedAssets: new Map(),
+              importedAssetNames: new Map(),
             };
           } catch (error) {
             console.error('Error merging persisted state:', error);

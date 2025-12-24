@@ -42,6 +42,43 @@ const SIZE_COLORS = {
   large: "bg-purple-500/20 border-purple-500/50 text-purple-300"
 };
 
+// Map animal/object names to emojis
+const ANIMAL_EMOJIS: Record<string, string> = {
+  cat: "🐱", cats: "🐱", kitty: "🐱",
+  dog: "🐶", dogs: "🐶", puppy: "🐶",
+  fox: "🦊", foxes: "🦊",
+  cow: "🐄", cows: "🐄",
+  pig: "🐷", pigs: "🐷",
+  sheep: "🐑", sheeps: "🐑",
+  horse: "🐴", horses: "🐴",
+  lion: "🦁", lions: "🦁",
+  tiger: "🐯", tigers: "🐯",
+  bear: "🐻", bears: "🐻",
+  rabbit: "🐰", rabbits: "🐰",
+  deer: "🦌", deers: "🦌",
+  bird: "🐦", birds: "🐦", eagle: "🦅", eagles: "🦅",
+  fish: "🐟", fishes: "🐟",
+  butterfly: "🦋", butterflies: "🦋",
+  dragon: "🐉", dragons: "🐉",
+  unicorn: "🦄", unicorns: "🦄",
+  penguin: "🐧", penguins: "🐧",
+  panda: "🐼", pandas: "🐼"
+};
+
+// Extract emoji from filename
+const getEmojiForAsset = (filename: string): string => {
+  const nameWithoutExt = filename.toLowerCase().replace(/\.(glb|gltf)$/i, '');
+  const words = nameWithoutExt.split(/[_-\s]+/);
+  
+  for (const word of words) {
+    if (ANIMAL_EMOJIS[word]) {
+      return ANIMAL_EMOJIS[word];
+    }
+  }
+  
+  return "🎁"; // Default emoji for unknown assets
+};
+
 // Get unique base assets for each category
 const getBaseAssetsByCategory = (category: string) => {
   const categoryAssets = ASSET_CATALOG.filter(asset => asset.category === category);
@@ -67,7 +104,7 @@ const getBaseAssetsByCategory = (category: string) => {
 };
 
 export function AssetLibrary() {
-  const { selectedAssetType, setAssetType, setTool, isMobile, importedAssets, addImportedAsset, removeImportedAsset, isAssetLibraryOpen, setAssetLibraryOpen } = useMapStore()
+  const { selectedAssetType, setAssetType, setTool, isMobile, importedAssets, importedAssetNames, addImportedAsset, removeImportedAsset, isAssetLibraryOpen, setAssetLibraryOpen } = useMapStore()
   const [activeCategory, setActiveCategory] = useState("Trees")
   const [activeTab, setActiveTab] = useState<"quick" | "import">("quick")
   const [selectedBaseAsset, setSelectedBaseAsset] = useState<string | null>(null)
@@ -139,7 +176,7 @@ export function AssetLibrary() {
         })
 
         const assetId = `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        addImportedAsset(assetId, arrayBuffer)
+        await addImportedAsset(assetId, arrayBuffer, file.name)
 
         setImportProgress({ current: i + 1, total: validFiles.length })
       } catch (error) {
@@ -452,17 +489,15 @@ export function AssetLibrary() {
                             </div>
                           )}
 
-                          {/* 3D Model Icon */}
-                          <div className="flex items-center justify-center">
-                            <svg className="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2.293-2.293a1 1 0 00-1.414 0l-2.293 2.293m0 0l-5 5v1.414a1 1 0 001 1h5.414a1 1 0 001-1v-5M6 7l2.293-2.293a1 1 0 011.414 0l2.293 2.293m0 0l5 5V8m0 0l2 2m-2-2L9 20" />
-                            </svg>
+                          {/* Asset Emoji */}
+                          <div className="text-5xl drop-shadow-lg">
+                            {getEmojiForAsset(importedAssetNames.get(assetId) || '')}
                           </div>
 
-                          {/* Asset ID */}
+                          {/* Asset Filename */}
                           <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-slate-900/90 to-transparent text-center">
                             <span className="text-xs font-medium text-slate-200 truncate block">
-                              {assetId.replace('imported-', '').slice(0, 8)}...
+                              {importedAssetNames.get(assetId) || assetId.replace('imported-', '').slice(0, 8)}
                             </span>
                           </div>
 
